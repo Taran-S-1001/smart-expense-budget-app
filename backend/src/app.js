@@ -1,9 +1,22 @@
 const express = require('express');
 const cors = require('cors');
 const routes = require('./routes');
-const { errorHandler, notFoundHandler } = require('./middleware');
+const config = require('./config');
+const { errorHandler, notFoundHandler, securityHeaders, httpsEnforcer } = require('./middleware');
 
 const app = express();
+
+// Disable X-Powered-By header
+app.disable('x-powered-by');
+
+// Configure trusted proxy if specified
+if (config.trustProxy !== false) {
+  app.set('trust proxy', config.trustProxy);
+}
+
+// Security headers and HTTPS enforcement
+app.use(securityHeaders);
+app.use(httpsEnforcer);
 
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
