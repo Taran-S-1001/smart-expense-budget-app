@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL DEFAULT 'User' CHECK (LOWER(role) IN ('user', 'admin')),
+    role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS categories (
     category_id VARCHAR(64) PRIMARY KEY DEFAULT gen_random_uuid()::text,
     user_id VARCHAR(64) REFERENCES users(user_id) ON DELETE CASCADE, -- Nullable for predefined categories
     name VARCHAR(100) NOT NULL,
-    type VARCHAR(20) NOT NULL CHECK (LOWER(type) IN ('expense', 'income')),
+    type VARCHAR(20) NOT NULL CHECK (type IN ('expense', 'income')),
     is_custom BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT uq_categories_user_name_type UNIQUE NULLS NOT DISTINCT (user_id, name, type)
 );
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     category_id VARCHAR(64) NOT NULL REFERENCES categories(category_id) ON DELETE RESTRICT,
     amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
     date DATE NOT NULL,
-    type VARCHAR(20) NOT NULL CHECK (LOWER(type) IN ('expense', 'income')),
+    type VARCHAR(20) NOT NULL CHECK (type IN ('expense', 'income')),
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
