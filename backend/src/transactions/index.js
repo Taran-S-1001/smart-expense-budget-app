@@ -1,11 +1,8 @@
 const express = require('express');
-const { authenticateToken } = require('../auth/jwt');
-const { createTransaction, listTransactions } = require('./transactionController');
 
 const router = express.Router();
 
-router.use(authenticateToken);
-router.get('/', listTransactions);
-router.post('/', createTransaction);
+// Scaffold for Transactions module (SEBM-F-010..013)
+// Owner: Dev A (Taran S) - Stories S1-04, S2-05, S2-06
 
 module.exports = router;

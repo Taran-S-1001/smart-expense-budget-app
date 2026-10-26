@@ -1,11 +1,8 @@
 const express = require('express');
-const { authenticateToken } = require('../auth/jwt');
-const { createAccount, listAccounts } = require('./accountController');
 
 const router = express.Router();
 
-router.use(authenticateToken);
-router.get('/', listAccounts);
-router.post('/', createAccount);
+// Scaffold for Accounts module (SEBM-F-030..031)
+// Owner: Dev A (Taran S) - Stories S1-03, S2-07
 
 module.exports = router;
