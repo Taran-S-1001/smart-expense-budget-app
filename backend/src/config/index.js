@@ -65,12 +65,6 @@ const isValidProxyAddressOrRange = (part) => {
 /**
  * Parse and validate TRUST_PROXY configuration.
  * Disallows unrestricted TRUST_PROXY=true in production.
- * Accepts:
- * - false, undefined, "", "false", "0" -> false
- * - "true" -> true (only allowed in non-production environments)
- * - integer or numeric string (e.g. "1") -> integer hop count
- * - keywords: "loopback", "linklocal", "uniquelocal"
- * - comma-separated list of valid IPs / CIDRs (strictly validated via net.isIP)
  */
 const parseTrustProxy = (val, nodeEnv = process.env.NODE_ENV || 'development') => {
   if (val === undefined || val === null || val === '' || val === false) {
@@ -174,8 +168,6 @@ const parsePositiveInteger = (value, defaultValue, label) => {
   return parsedValue;
 };
 
-const nodeEnv = process.env.NODE_ENV || 'development';
-
 const config = {
   port: parseInt(process.env.PORT || '4000', 10),
   get nodeEnv() {
@@ -209,7 +201,6 @@ const config = {
     port: parseInt(process.env.DB_PORT || process.env.PGPORT || '5432', 10),
     get database() {
       const activeEnv = process.env.NODE_ENV || 'development';
-
       return activeEnv === 'test'
         ? 'sebm_test'
         : (
