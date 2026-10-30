@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authenticateToken } = require('../auth/jwt');
+const { requireRole } = require('../middleware/rbac');
 
 const router = express.Router();
 
@@ -20,19 +21,6 @@ const normalizeCategoryType = (value) => {
     return normalized;
   }
   return '';
-};
-
-const requireAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({
-      error: {
-        code: 'FORBIDDEN',
-        message: 'Admin access required.',
-      },
-    });
-  }
-
-  return next();
 };
 
 const mapCategoryRow = (row) => ({
@@ -68,7 +56,25 @@ const buildCategoryFilter = (typeFilter) => {
   };
 };
 
-router.use(authenticateToken, requireAdmin);
+const categoryInUseError = (message = 'This predefined category is in use and cannot be modified.') => {
+  const error = new Error(message);
+  error.statusCode = 409;
+  error.code = 'CATEGORY_IN_USE';
+  return error;
+};
+
+const getCategoryUsage = async (categoryId) => {
+  const result = await db.query(
+    `SELECT
+      EXISTS (SELECT 1 FROM transactions WHERE category_id = $1) AS has_transactions,
+      EXISTS (SELECT 1 FROM budgets WHERE category_id = $1) AS has_budgets`,
+    [categoryId],
+  );
+
+  return result.rows[0] || { has_transactions: false, has_budgets: false };
+};
+
+router.use(authenticateToken, requireRole('Admin'));
 
 router.get(['/categories', '/predefined-categories'], async (req, res, next) => {
   try {
@@ -160,6 +166,26 @@ router.put(['/categories/:categoryId', '/predefined-categories/:categoryId'], as
       throw error;
     }
 
+    const existingCategory = await db.query(
+      `SELECT category_id, name, type, user_id FROM categories WHERE category_id = $1 LIMIT 1;`,
+      [categoryId],
+    );
+
+    if (existingCategory.rows.length === 0) {
+      const error = new Error('Predefined category not found.');
+      error.statusCode = 404;
+      error.code = 'CATEGORY_NOT_FOUND';
+      throw error;
+    }
+
+    const currentCategory = existingCategory.rows[0];
+    if (currentCategory.user_id !== null) {
+      const error = new Error('Only predefined categories may be managed here.');
+      error.statusCode = 400;
+      error.code = 'VALIDATION_ERROR';
+      throw error;
+    }
+
     const duplicate = await db.query(
       `SELECT category_id FROM categories
        WHERE user_id IS NULL AND category_id != $1 AND LOWER(name) = LOWER($2) AND type = $3
@@ -172,6 +198,13 @@ router.put(['/categories/:categoryId', '/predefined-categories/:categoryId'], as
       error.statusCode = 409;
       error.code = 'CATEGORY_ALREADY_EXISTS';
       throw error;
+    }
+
+    if (currentCategory.type !== type) {
+      const usage = await getCategoryUsage(categoryId);
+      if (usage.has_transactions || usage.has_budgets) {
+        throw categoryInUseError('This predefined category is in use and cannot change type while referenced by transactions or budgets.');
+      }
     }
 
     const result = await db.query(
@@ -194,6 +227,9 @@ router.put(['/categories/:categoryId', '/predefined-categories/:categoryId'], as
       category: mapCategoryRow(result.rows[0]),
     });
   } catch (error) {
+    if (error.code === '23503' || error.code === '23001') {
+      return next(categoryInUseError('This predefined category is in use by existing transactions or budgets and cannot be modified.'));
+    }
     return next(error);
   }
 });
@@ -207,6 +243,11 @@ router.delete(['/categories/:categoryId', '/predefined-categories/:categoryId'],
       error.statusCode = 400;
       error.code = 'VALIDATION_ERROR';
       throw error;
+    }
+
+    const usage = await getCategoryUsage(categoryId);
+    if (usage.has_transactions || usage.has_budgets) {
+      throw categoryInUseError('This predefined category is in use by existing transactions or budgets and cannot be deleted.');
     }
 
     const result = await db.query(
@@ -228,11 +269,8 @@ router.delete(['/categories/:categoryId', '/predefined-categories/:categoryId'],
       categoryId,
     });
   } catch (error) {
-    if (error.code === '23503') {
-      const customError = new Error('This predefined category is in use by existing transactions and cannot be deleted.');
-      customError.statusCode = 409;
-      customError.code = 'CATEGORY_IN_USE';
-      return next(customError);
+    if (error.code === '23503' || error.code === '23001') {
+      return next(categoryInUseError('This predefined category is in use by existing transactions or budgets and cannot be deleted.'));
     }
     return next(error);
   }

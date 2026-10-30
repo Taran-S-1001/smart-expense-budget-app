@@ -17,7 +17,7 @@ const router = express.Router();
 
 const getPasswordResetTokenLifetimeSeconds = () => {
   const configuredLifetime = Number.parseInt(
-    process.env.PASSWORD_RESET_TOKEN_LIFETIME_SECONDS ?? process.env.RESET_TOKEN_LIFETIME_SECONDS ?? String(config.passwordResetTokenLifetimeSeconds ?? 30 * 60),
+    process.env.PASSWORD_RESET_TOKEN_LIFETIME_SECONDS ?? process.env.RESET_TOKEN_LIFETIME_SECONDS ?? String(config.passwordResetTokenLifetimeSeconds),
     10
   );
 
@@ -25,7 +25,7 @@ const getPasswordResetTokenLifetimeSeconds = () => {
     return configuredLifetime;
   }
 
-  return 30 * 60;
+  return config.passwordResetTokenLifetimeSeconds;
 };
 
 const hashPasswordResetTokenId = (tokenId) => {

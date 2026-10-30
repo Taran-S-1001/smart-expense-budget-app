@@ -6,6 +6,7 @@ const navigation = [
   { to: '/accounts', label: 'Accounts' },
   { to: '/transactions', label: 'Transactions' },
   { to: '/budgets', label: 'Budgets' },
+  { to: '/admin/categories', label: 'Admin' },
 ];
 
 export function AppLayout() {
@@ -20,16 +21,18 @@ export function AppLayout() {
         </Link>
         <p className="sidebar-label">Workspace</p>
         <nav aria-label="Main navigation">
-          {navigation.map(({ to, label, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-            >
-              {label}
-            </NavLink>
-          ))}
+          {navigation
+            .filter(({ to }) => to !== '/admin/categories' || user?.role === 'admin')
+            .map(({ to, label, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+              >
+                {label}
+              </NavLink>
+            ))}
           {!isAuthenticated && (
             <>
               <NavLink

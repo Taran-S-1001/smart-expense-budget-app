@@ -19,7 +19,7 @@ describe('Backend Scaffold & Routing (Integration)', () => {
       { prefix: '/api/accounts', status: 401 },
       { prefix: '/api/reports', status: 404 },
       { prefix: '/api/notifications', status: 404 },
-      { prefix: '/api/admin', status: 404 },
+      { prefix: '/api/admin', status: 401 },
       { prefix: '/api/receipts', status: 404 },
     ];
 

@@ -121,6 +121,15 @@ describe('Admin predefined categories API (S2-04)', () => {
 
   it('updates and deletes predefined categories without touching custom user categories', async () => {
     db.query
+      .mockResolvedValueOnce({
+        rows: [{
+          category_id: 'cat-4',
+          name: 'Utilities',
+          type: 'expense',
+          is_custom: false,
+          user_id: null,
+        }],
+      })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -145,9 +154,13 @@ describe('Admin predefined categories API (S2-04)', () => {
     });
 
     db.query.mockReset();
-    db.query.mockResolvedValueOnce({
-      rows: [{ category_id: 'cat-4' }],
-    });
+    db.query
+      .mockResolvedValueOnce({
+        rows: [{ has_transactions: false, has_budgets: false }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ category_id: 'cat-4' }],
+      });
 
     const deleteResponse = await request(app)
       .delete('/api/admin/categories/cat-4')
