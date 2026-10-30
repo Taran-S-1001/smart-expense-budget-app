@@ -165,48 +165,59 @@ const parseTlsMinVersion = (val) => {
   return normalized;
 };
 
-const parsePositiveInteger = (value, defaultValue, label) => {
-  const normalizedValue = value === undefined || value === null || value === '' ? String(defaultValue) : String(value);
-  const parsedValue = Number.parseInt(normalizedValue, 10);
-  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
-    throw new Error(`Invalid ${label}: ${value}. Expected a positive integer.`);
+const parseSessionTimeoutSeconds = (val) => {
+  if (val === undefined || val === null || val === '') {
+    return 900;
   }
-  return parsedValue;
+  const trimmed = String(val).trim();
+  if (!/^\d+$/.test(trimmed)) {
+    throw new Error(
+      `Invalid SESSION_TIMEOUT_SECONDS: "${val}". Must be a positive integer number of seconds.`
+    );
+  }
+  const num = Number(trimmed);
+  if (!Number.isSafeInteger(num) || num <= 0) {
+    throw new Error(
+      `Invalid SESSION_TIMEOUT_SECONDS: "${val}". Must be a positive integer number of seconds.`
+    );
+  }
+  return num;
 };
-
-const nodeEnv = process.env.NODE_ENV || 'development';
 
 const config = {
   port: parseInt(process.env.PORT || '4000', 10),
-  nodeEnv,
+  get nodeEnv() {
+    return process.env.NODE_ENV || 'development';
+  },
   jwtSecret: process.env.JWT_SECRET || undefined,
-  sessionTimeoutSeconds: parsePositiveInteger(
-    process.env.SESSION_TIMEOUT_SECONDS ?? process.env.AUTH_TOKEN_LIFETIME_SECONDS ?? process.env.TOKEN_LIFETIME_SECONDS,
-    15 * 60,
-    'SESSION_TIMEOUT_SECONDS'
-  ),
-  passwordResetTokenLifetimeSeconds: parsePositiveInteger(
-    process.env.PASSWORD_RESET_TOKEN_LIFETIME_SECONDS ?? process.env.RESET_TOKEN_LIFETIME_SECONDS,
-    30 * 60,
-    'PASSWORD_RESET_TOKEN_LIFETIME_SECONDS'
-  ),
+    sessionTimeoutSeconds: parseSessionTimeoutSeconds(process.env.SESSION_TIMEOUT_SECONDS),
   tls: {
     enabled: process.env.TLS_ENABLED === 'true',
     certPath: process.env.TLS_CERT_PATH || undefined,
     keyPath: process.env.TLS_KEY_PATH || undefined,
     minVersion: parseTlsMinVersion(process.env.TLS_MIN_VERSION),
   },
-  trustProxy: parseTrustProxy(process.env.TRUST_PROXY, nodeEnv),
+  get trustProxy() {
+    return parseTrustProxy(process.env.TRUST_PROXY, this.nodeEnv);
+  },
   enforceHttps: process.env.ENFORCE_HTTPS === 'true',
   hstsIncludeSubdomains: process.env.HSTS_INCLUDE_SUBDOMAINS === 'true',
   db: {
     connectionString: process.env.DATABASE_URL || undefined,
     host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
     port: parseInt(process.env.DB_PORT || process.env.PGPORT || '5432', 10),
-    database: process.env.DB_NAME
-      || process.env.POSTGRES_DB
-      || process.env.PGDATABASE
-      || (nodeEnv === 'test' ? 'sebm_test' : 'sebm'),
+    get database() {
+      const nodeEnv = process.env.NODE_ENV || 'development';
+
+      return nodeEnv === 'test'
+        ? 'sebm_test'
+        : (
+            process.env.DB_NAME
+            || process.env.POSTGRES_DB
+            || process.env.PGDATABASE
+            || 'sebm'
+          );
+    },
     user: process.env.DB_USER || process.env.POSTGRES_USER || process.env.PGUSER || 'sebm',
     password: process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD || 'sebm_dev_password',
     ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
@@ -217,6 +228,7 @@ const config = {
   parseTrustProxy,
   parseTlsMinVersion,
   isValidProxyAddressOrRange,
+  parseSessionTimeoutSeconds,
 };
 
 module.exports = config;
