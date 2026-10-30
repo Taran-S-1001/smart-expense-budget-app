@@ -165,23 +165,13 @@ const parseTlsMinVersion = (val) => {
   return normalized;
 };
 
-const parseSessionTimeoutSeconds = (val) => {
-  if (val === undefined || val === null || val === '') {
-    return 900;
+const parsePositiveInteger = (value, defaultValue, label) => {
+  const normalizedValue = value === undefined || value === null || value === '' ? String(defaultValue) : String(value);
+  const parsedValue = Number.parseInt(normalizedValue, 10);
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    throw new Error(`Invalid ${label}: ${value}. Expected a positive integer.`);
   }
-  const trimmed = String(val).trim();
-  if (!/^\d+$/.test(trimmed)) {
-    throw new Error(
-      `Invalid SESSION_TIMEOUT_SECONDS: "${val}". Must be a positive integer number of seconds.`
-    );
-  }
-  const num = Number(trimmed);
-  if (!Number.isSafeInteger(num) || num <= 0) {
-    throw new Error(
-      `Invalid SESSION_TIMEOUT_SECONDS: "${val}". Must be a positive integer number of seconds.`
-    );
-  }
-  return num;
+  return parsedValue;
 };
 
 const config = {
@@ -190,7 +180,16 @@ const config = {
     return process.env.NODE_ENV || 'development';
   },
   jwtSecret: process.env.JWT_SECRET || undefined,
-    sessionTimeoutSeconds: parseSessionTimeoutSeconds(process.env.SESSION_TIMEOUT_SECONDS),
+  sessionTimeoutSeconds: parsePositiveInteger(
+    process.env.SESSION_TIMEOUT_SECONDS ?? process.env.AUTH_TOKEN_LIFETIME_SECONDS ?? process.env.TOKEN_LIFETIME_SECONDS,
+    15 * 60,
+    'SESSION_TIMEOUT_SECONDS'
+  ),
+  passwordResetTokenLifetimeSeconds: parsePositiveInteger(
+    process.env.PASSWORD_RESET_TOKEN_LIFETIME_SECONDS ?? process.env.RESET_TOKEN_LIFETIME_SECONDS,
+    30 * 60,
+    'PASSWORD_RESET_TOKEN_LIFETIME_SECONDS'
+  ),
   tls: {
     enabled: process.env.TLS_ENABLED === 'true',
     certPath: process.env.TLS_CERT_PATH || undefined,
@@ -228,7 +227,7 @@ const config = {
   parseTrustProxy,
   parseTlsMinVersion,
   isValidProxyAddressOrRange,
-  parseSessionTimeoutSeconds,
+  parsePositiveInteger,
 };
 
 module.exports = config;
