@@ -200,8 +200,7 @@ const config = {
     host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
     port: parseInt(process.env.DB_PORT || process.env.PGPORT || '5432', 10),
     get database() {
-      const activeEnv = process.env.NODE_ENV || 'development';
-      return activeEnv === 'test'
+      return (process.env.NODE_ENV || 'development') === 'test'
         ? 'sebm_test'
         : (
             process.env.DB_NAME
