@@ -1,8 +1,13 @@
 const express = require('express');
+const { authenticateToken } = require('../auth/jwt');
+const { attachReceipt, getReceipt } = require('./receiptController');
 
 const router = express.Router();
 
-// Scaffold for Receipts module (SEBM-F-012)
-// Owner: Dev D (Surya Raju Naik) - Story S2-12
+// Require authentication for all receipt operations per SEBM-F-012
+router.use(authenticateToken);
+
+router.post('/:transactionId', attachReceipt);
+router.get('/:transactionId', getReceipt);
 
 module.exports = router;

@@ -200,6 +200,7 @@ describe('Database Schema & Migrations (Unit / Mocked)', () => {
               rows: [
                 { version: '202610221200_core_create_tables.sql' },
                 { version: '202610221201_categories_seed_predefined.sql' },
+                { version: '202610291200_accounts_create_transfers.sql' },
                 { version: '202610301200_add_password_reset_token_hash.sql' },
               ],
             };

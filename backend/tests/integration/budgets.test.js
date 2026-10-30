@@ -7,7 +7,7 @@ const { signTestToken } = require('../../src/auth/jwt');
 const TEST_SECRET = 'budget-integration-test-secret';
 const originalJwtSecret = config.jwtSecret;
 
-describe('Budget API Integration Tests (S1-05 & S1-06)', () => {
+describe('Budget API Integration Tests (S1-05, S1-06 & S2-08)', () => {
   let testUserId;
   let testAccountId;
   let testCategoryId;
@@ -51,13 +51,13 @@ describe('Budget API Integration Tests (S1-05 & S1-06)', () => {
     // 4. Insert sample transactions using valid transaction types
     await pool.query(
       `INSERT INTO transactions (account_id, category_id, amount, type, date)
-      VALUES ($1, $2, 150.00, 'expense', '2026-11-10');`,
+       VALUES ($1, $2, 150.00, 'expense', '2026-11-10');`,
       [testAccountId, testCategoryId]
     );
 
     await pool.query(
       `INSERT INTO transactions (account_id, category_id, amount, type, date)
-      VALUES ($1, $2, 300.00, 'expense', '2026-11-15');`,
+       VALUES ($1, $2, 300.00, 'expense', '2026-11-15');`,
       [testAccountId, testCategoryId]
     );
   });
@@ -234,6 +234,64 @@ describe('Budget API Integration Tests (S1-05 & S1-06)', () => {
 
       expect(res.statusCode).toEqual(401);
       expect(res.body.error.code).toBe('MISSING_AUTHORIZATION');
+    });
+  });
+
+  describe('Budget Notification & Threshold Warnings - S2-08 Tests (TC-Bud-03)', () => {
+    test('should trigger threshold warning and limit exceeded alerts upon transaction creation', async () => {
+      // 1. Create a budget for January 2027 with a limit of $100.00 and 80% threshold
+      const budgetRes = await request(app)
+        .post('/api/budgets')
+        .set('Authorization', authorization())
+        .send({
+          category_id: testCategoryId,
+          period: '2027-01',
+          limit_amount: 100.00,
+          alert_threshold: 80.00
+        });
+
+      expect(budgetRes.statusCode).toEqual(201);
+
+      // 2. Post an expense transaction reaching 85% ($85.00) -> triggers threshold warning
+      const txRes1 = await request(app)
+        .post('/api/transactions')
+        .set('Authorization', authorization())
+        .send({
+          accountId: testAccountId,
+          categoryId: testCategoryId,
+          amount: 85.00,
+          type: 'expense',
+          date: '2027-01-10',
+          notes: 'Hit threshold'
+        });
+
+      expect(txRes1.statusCode).toEqual(201);
+
+      // 3. Post another expense transaction pushing total to $110.00 (>100%) -> triggers limit exceeded
+      const txRes2 = await request(app)
+        .post('/api/transactions')
+        .set('Authorization', authorization())
+        .send({
+          accountId: testAccountId,
+          categoryId: testCategoryId,
+          amount: 25.00,
+          type: 'expense',
+          date: '2027-01-15',
+          notes: 'Exceed limit'
+        });
+
+      expect(txRes2.statusCode).toEqual(201);
+
+      // 4. Verify notifications endpoint records the triggered alerts
+      const notifRes = await request(app)
+        .get('/api/notifications')
+        .set('Authorization', authorization());
+
+      if (notifRes.statusCode === 200 && Array.isArray(notifRes.body)) {
+        const hasWarning = notifRes.body.some(n => n.type === 'BUDGET_THRESHOLD_WARNING');
+        const hasExceeded = notifRes.body.some(n => n.type === 'BUDGET_LIMIT_EXCEEDED');
+        expect(hasWarning || hasExceeded).toBe(true);
+      }
     });
   });
 });

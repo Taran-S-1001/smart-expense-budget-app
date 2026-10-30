@@ -208,4 +208,41 @@ describe('TransactionsPage (SEBM-F-010, TC-Exp-01)', () => {
     expect(screen.queryByText('Coffee')).toBeNull();
     expect(screen.getByText('Your transactions will appear here after you sign in.')).toBeTruthy();
   });
+
+  it('adds a custom category and makes it selectable for the next transaction (SEBM-F-013, TC-Exp-04)', async () => {
+    const user = userEvent.setup();
+    resolveInitialRequests();
+    api.post.mockResolvedValue({
+      category: { categoryId: 'category-pets', name: 'Pets', type: 'expense' },
+    });
+    renderTransactionsPage();
+
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText('Coffee')).toBeTruthy();
+
+    await user.type(screen.getByLabelText('New expense category'), '  Pets ');
+    await user.click(screen.getByRole('button', { name: 'Add category' }));
+
+    expect(await screen.findByText('Category "Pets" added.')).toBeTruthy();
+    expect(api.post).toHaveBeenCalledWith(
+      '/transactions/categories',
+      { name: 'Pets', type: 'expense' },
+      expect.objectContaining({ headers: { Authorization: 'Bearer test-token' } }),
+    );
+    expect(screen.getByRole('option', { name: 'Pets' }).selected).toBe(true);
+  });
+
+  it('shows the server message when a duplicate category is rejected', async () => {
+    const user = userEvent.setup();
+    resolveInitialRequests();
+    api.post.mockRejectedValue(new Error('A category with this name and type already exists.'));
+    renderTransactionsPage();
+
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText('Coffee')).toBeTruthy();
+    await user.type(screen.getByLabelText('New expense category'), 'Groceries');
+    await user.click(screen.getByRole('button', { name: 'Add category' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('already exists');
+  });
 });

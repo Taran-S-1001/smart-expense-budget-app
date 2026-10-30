@@ -20,4 +20,13 @@ const createAccount = async (req, res, next) => {
   }
 };
 
-module.exports = { listAccounts, createAccount };
+const transferFunds = async (req, res, next) => {
+  try {
+    const transfer = await accountService.transfer(req.user.userId, req.body);
+    return res.status(201).json(transfer);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+module.exports = { listAccounts, createAccount, transferFunds };

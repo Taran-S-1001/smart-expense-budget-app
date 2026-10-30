@@ -713,6 +713,74 @@ a:focus-visible {
   font-weight: 700;
 }
 
+
+/* S2-12: Receipt photo attach & view styles (SEBM-F-012) */
+.receipt-section {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #e1e9e3;
+  border-radius: 12px;
+  background: #fafbfa;
+}
+
+.receipt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.receipt-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #173826;
+}
+
+.receipt-display,
+.receipt-preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.receipt-image,
+.receipt-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border: 1px solid #d4e0d7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.receipt-meta {
+  margin: 0;
+  color: #596b60;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.receipt-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.receipt-input-container {
+  display: grid;
+  gap: 8px;
+}
+
+.receipt-file-input {
+  font-size: 0.85rem;
+  color: #314a3c;
+}
+
 @media (max-width: 920px) {
   .module-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -828,4 +896,14 @@ a:focus-visible {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+.transaction-actions {
+  display: flex;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.transaction-form .primary-button + .secondary-button {
+  margin-left: 0.5rem;
 }

@@ -74,6 +74,41 @@ docker compose logs -f db  # follow database logs
 - **`sebm_test` is missing:** create it in the running container with `docker exec -it sebm-postgres psql -U sebm -c "CREATE DATABASE sebm_test;"` (replace `sebm` if you changed `POSTGRES_USER`). The init script only runs on a fresh volume. `docker compose down -v` also recreates it, but permanently deletes your local development data.
 - **`docker` is not recognised:** start Docker Desktop, then open a new terminal.
 
+### Clear demo data for one user
+
+To reset a demo run without deleting other users or the databases, remove only the demo user from the development database (`sebm`). This also removes that user's accounts, transactions, budgets, notifications, and custom categories through the configured foreign-key cascades. It does not remove shared predefined categories.
+
+Open a PostgreSQL prompt in the running container:
+
+```bash
+docker exec -it sebm-postgres psql -U sebm -d sebm
+```
+
+At the `sebm` prompt, replace `YOUR_DEMO_EMAIL` with the exact email used for the demo. First inspect the matching user, then delete their transactions and user row inside a transaction:
+
+```sql
+BEGIN;
+
+SELECT user_id, name, email
+FROM users
+WHERE lower(email) = lower('YOUR_DEMO_EMAIL');
+
+DELETE FROM transactions t
+USING accounts a
+WHERE t.account_id = a.account_id
+  AND a.user_id = (
+    SELECT user_id
+    FROM users
+    WHERE lower(email) = lower('YOUR_DEMO_EMAIL')
+  );
+
+DELETE FROM users
+WHERE lower(email) = lower('YOUR_DEMO_EMAIL')
+RETURNING user_id, name, email;
+```
+
+Check the returned email before committing. If it is the intended demo user, run `COMMIT;`. If it is not, or you are unsure, run `ROLLBACK;` instead. Exit `psql` with `\q`, then register the demo user again. Do not use `docker compose down -v` to clear one user's data; that deletes the entire local database volume.
+
 ## Team workflow
 
 - One issue = one branch = one PR, cut from `main`. Feature branches use `feature/<module>/<issue>-<short-name>`; independent test branches use `test/<module>/<issue>-<short-name>`; bug fixes use `feature/<module>/<bug-issue>-fix-<short-name>`.

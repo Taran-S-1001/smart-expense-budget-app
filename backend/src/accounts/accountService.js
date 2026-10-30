@@ -46,7 +46,32 @@ class AccountService {
 
     return this.repository.create({ userId, accountType, accountName, openingBalance });
   }
+
+  async transfer(userId, data = {}) {
+    const fromAccountId = typeof data.fromAccountId === 'string' ? data.fromAccountId.trim() : '';
+    const toAccountId = typeof data.toAccountId === 'string' ? data.toAccountId.trim() : '';
+    const amount = parseOpeningBalance(data.amount);
+
+    if (!fromAccountId) {
+      throw createError('VALIDATION_ERROR', 'fromAccountId is required.', 400);
+    }
+    if (!toAccountId) {
+      throw createError('VALIDATION_ERROR', 'toAccountId is required.', 400);
+    }
+    if (fromAccountId === toAccountId) {
+      throw createError('VALIDATION_ERROR', 'Source and destination accounts must be different.', 400);
+    }
+    if (data.amount === undefined || !Number.isFinite(amount) || amount <= 0 || amount > 9999999999.99) {
+      throw createError('VALIDATION_ERROR', 'amount must be a valid positive amount.', 400);
+    }
+    if (!/^\d+(?:\.\d{1,2})?$/.test(String(data.amount).trim())) {
+      throw createError('VALIDATION_ERROR', 'amount must have no more than two decimal places.', 400);
+    }
+
+    return this.repository.transfer({ userId, fromAccountId, toAccountId, amount });
+  }
 }
+
 
 module.exports = AccountService;
 module.exports.createError = createError;
