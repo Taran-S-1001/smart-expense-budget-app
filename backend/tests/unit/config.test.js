@@ -1,3 +1,5 @@
+process.env.NODE_ENV = 'test';
+
 const config = require('../../src/config');
 const { getPoolConfig } = require('../../src/db');
 const { validateTlsFiles, createServer } = require('../../src/server');
@@ -24,13 +26,22 @@ describe('Configuration & DB Config (Unit)', () => {
     expect(config.db.port).toBe(5432);
 
     expect(config.db.database).toBe(
-      process.env.DB_NAME ||
-      process.env.POSTGRES_DB ||
-      process.env.PGDATABASE ||
-      (config.nodeEnv === 'test' ? 'sebm_test' : 'sebm')
+      config.nodeEnv === 'test'
+        ? 'sebm_test'
+        : (
+            process.env.DB_NAME ||
+            process.env.POSTGRES_DB ||
+            process.env.PGDATABASE ||
+            'sebm'
+          )
     );
 
-    expect(config.db.user).toBe('sebm');
+    expect(config.db.user).toBe(
+      process.env.DB_USER ||
+      process.env.POSTGRES_USER ||
+      process.env.PGUSER ||
+      'sebm'
+    );
 
     expect(config.db.password).toBe(
       process.env.DB_PASSWORD ||
@@ -45,8 +56,13 @@ describe('Configuration & DB Config (Unit)', () => {
   it('constructs database pool config correctly with overrides', () => {
     const customConfig = getPoolConfig({ max: 5 });
     expect(customConfig.max).toBe(5);
-    expect(customConfig.database).toBe(config.db.database);
-    expect(customConfig.user).toBe(config.db.user);
+
+    if (config.db.connectionString) {
+      expect(customConfig.connectionString).toBe(config.db.connectionString);
+    } else {
+      expect(customConfig.database).toBe(config.db.database);
+      expect(customConfig.user).toBe(config.db.user);
+    }
   });
 
   describe('parseTrustProxy helper', () => {
@@ -126,7 +142,6 @@ describe('Configuration & DB Config (Unit)', () => {
     });
 
     it('rejects out-of-range or malformed CIDR prefixes', () => {
-      // IPv4 prefix must be 0-32
       expect(() => parse('10.0.0.0/33')).toThrow(/Invalid TRUST_PROXY configuration/i);
       expect(() => parse('10.0.0.0/-1')).toThrow(/Invalid TRUST_PROXY configuration/i);
       expect(() => parse('10.0.0.0/abc')).toThrow(/Invalid TRUST_PROXY configuration/i);
@@ -134,7 +149,6 @@ describe('Configuration & DB Config (Unit)', () => {
       expect(() => parse('10.0.0.0//8')).toThrow(/Invalid TRUST_PROXY configuration/i);
       expect(() => parse('10.0.0.0/8/8')).toThrow(/Invalid TRUST_PROXY configuration/i);
 
-      // IPv6 prefix must be 0-128
       expect(() => parse('::1/129')).toThrow(/Invalid TRUST_PROXY configuration/i);
       expect(() => parse('fe80::/200')).toThrow(/Invalid TRUST_PROXY configuration/i);
     });
