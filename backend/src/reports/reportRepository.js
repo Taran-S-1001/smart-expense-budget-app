@@ -34,7 +34,17 @@ async function getMonthlyTransactions(userId, year) {
   return result.rows;
 }
 
+async function getUserBudgets(userId) {
+  const pool = getPool();
+  const result = await pool.query(
+    `SELECT budget_id, category_id, monthly_limit FROM budgets WHERE user_id = $1`,
+    [userId]
+  );
+  return result.rows;
+}
+
 module.exports = {
   getWeeklyTransactions,
   getMonthlyTransactions,
+  getUserBudgets,
 };
