@@ -144,4 +144,32 @@ router.get('/export', authenticateToken, async (req, res, next) => {
   }
 });
 
+/**
+ * @route GET /api/reports/comparison
+ * @desc Get period-over-period comparison report (SEBM-F-042 / TC-Rep-03)
+ * @access Private
+ */
+router.get('/comparison', authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { currentStart, currentEnd, prevStart, prevEnd } = req.query;
+    if (!currentStart || !currentEnd || !prevStart || !prevEnd) {
+      return res.status(400).json({
+        error: 'currentStart, currentEnd, prevStart, and prevEnd query parameters are required.'
+      });
+    }
+
+    const comparisonReport = await reportService.getPeriodComparisonData(
+      userId, currentStart, currentEnd, prevStart, prevEnd
+    );
+    res.json(comparisonReport);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
