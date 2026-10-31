@@ -19,6 +19,12 @@ const modules = [
     to: '/budgets',
     symbol: 'B',
   },
+  {
+    title: 'Bill Reminders',
+    description: 'Schedule upcoming bill payments and reminders.',
+    to: '/reminders',
+    symbol: 'R',
+  },
 ];
 
 export function DashboardPage() {

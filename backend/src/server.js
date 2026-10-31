@@ -3,6 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const app = require('./app');
 const config = require('./config');
+const { startReminderScheduler, stopReminderScheduler } = require('./reminders/reminderScheduler');
 
 const validateTlsFiles = (certPath, keyPath) => {
   if (
@@ -71,12 +72,14 @@ if (process.env.NODE_ENV !== 'test' || require.main === module) {
   server.listen(PORT, () => {
     const protocol = config.tls && config.tls.enabled ? 'https' : 'http';
     console.log(`SEBM backend listening on port ${PORT} (${protocol}) [${config.nodeEnv}]`);
+    startReminderScheduler();
   });
 }
 
 // Graceful shutdown handling
 const handleShutdown = async (signal) => {
   console.log(`Received ${signal}, shutting down gracefully...`);
+  stopReminderScheduler();
   server.close(async () => {
     try {
       const db = require('./db');
@@ -93,5 +96,7 @@ process.on('SIGINT', () => handleShutdown('SIGINT'));
 
 server.createServer = createServer;
 server.validateTlsFiles = validateTlsFiles;
+server.startReminderScheduler = startReminderScheduler;
+server.stopReminderScheduler = stopReminderScheduler;
 
 module.exports = server;

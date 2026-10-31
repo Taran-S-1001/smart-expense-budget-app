@@ -6,6 +6,7 @@ const navigation = [
   { to: '/accounts', label: 'Accounts' },
   { to: '/transactions', label: 'Transactions' },
   { to: '/budgets', label: 'Budgets' },
+  { to: '/reminders', label: 'Bill Reminders' },
   { to: '/admin/categories', label: 'Admin' },
 ];
 
