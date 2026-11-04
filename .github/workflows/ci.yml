@@ -14,7 +14,20 @@ jobs:
   backend-ci:
     name: Backend CI
     runs-on: ubuntu-latest
-    
+
+    env:
+      NODE_ENV: test
+      JWT_SECRET: test-secret-for-ci
+      DATABASE_URL: postgres://postgres:postgres_password@127.0.0.1:5432/sebm_test
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: sebm_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres_password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_DB: sebm_test
+
     services:
       postgres:
         image: postgres:15
@@ -49,17 +62,9 @@ jobs:
 
       - name: Run database migrations
         run: npm run db:migrate
-        env:
-          NODE_ENV: test
-          DATABASE_URL: postgres://postgres:postgres_password@127.0.0.1:5432/sebm_test
 
       - name: Run unit tests
         run: npm run test:unit
-        env:
-          NODE_ENV: test
 
       - name: Run integration tests
         run: npm run test:integration
-        env:
-          NODE_ENV: test
-          DATABASE_URL: postgres://postgres:postgres_password@127.0.0.1:5432/sebm_test

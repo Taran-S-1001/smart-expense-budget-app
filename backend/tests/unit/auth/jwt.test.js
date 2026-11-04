@@ -66,7 +66,7 @@ describe('TC-Auth-01: JWT middleware (SEBM-F-002)', () => {
   it.each([
     ['a malformed token', 'Bearer not-a-jwt'],
     ['a token with a bad signature', `Bearer ${jwt.sign({ userId: 'user-123', role: 'User' }, 'wrong-secret', { algorithm: 'HS256' })}`],
-    ['an expired token', `Bearer ${createSignedToken({ userId: 'user-123', role: 'User' }, { expiresIn: -1 })}`],
+    ['an expired token', `Bearer ${createSignedToken({ userId: 'user-123', role: 'User', exp: Math.floor(Date.now() / 1000) - 60 }, {})}`],
     ['a token with an invalid role', `Bearer ${createSignedToken({ userId: 'user-123', role: 'Owner' }, { expiresIn: '5m' })}`],
     ['a token without a role', `Bearer ${createSignedToken({ userId: 'user-123' }, { expiresIn: '5m' })}`],
     ['an unsigned token', `Bearer ${jwt.sign({ userId: 'user-123', role: 'User', exp: Math.floor(Date.now() / 1000) + 60 }, undefined, { algorithm: 'none' })}`],

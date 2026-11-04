@@ -3,7 +3,7 @@
  * Requirement: SEBM-SR-005 (Issue #28, Story S2-03, Test Case TC-Sec-06).
  *
  * Enforces role restrictions on protected endpoints.
- * Assumes authenticateToken is executed prior to requireRole to populate req.user.
+ * Assumes authenticateToken runs before requireRole to populate req.user.
  */
 
 const normalizeRole = (role) => {
@@ -12,21 +12,12 @@ const normalizeRole = (role) => {
   return trimmed.length > 0 ? trimmed.toLowerCase() : null;
 };
 
-/**
- * Returns an Express middleware that checks if the authenticated user possesses the required role.
- *
- * @param {string|string[]} requiredRole - The role or array of roles required to access the endpoint (case-insensitive).
- * @returns {Function} Express middleware (req, res, next)
- */
 const requireRole = (requiredRole) => {
-  const allowedRoles = (
-    Array.isArray(requiredRole)
-      ? requiredRole.map(normalizeRole).filter(Boolean)
-      : [normalizeRole(requiredRole)].filter(Boolean)
-  );
+  const allowedRoles = (Array.isArray(requiredRole) ? requiredRole : [requiredRole])
+    .map(normalizeRole)
+    .filter(Boolean);
 
   return (req, res, next) => {
-    // Missing authenticated user context -> 401 Unauthorized
     if (!req.user || typeof req.user !== 'object' || typeof req.user.role !== 'string') {
       return res.status(401).json({
         error: {
@@ -38,7 +29,6 @@ const requireRole = (requiredRole) => {
 
     const userRole = normalizeRole(req.user.role);
 
-    // Fail closed: if configuration is invalid (no valid role specified) or user lacks required role -> 403 Forbidden
     if (allowedRoles.length === 0 || !userRole || !allowedRoles.includes(userRole)) {
       return res.status(403).json({
         error: {
@@ -55,3 +45,4 @@ const requireRole = (requiredRole) => {
 module.exports = requireRole;
 module.exports.requireRole = requireRole;
 module.exports.normalizeRole = normalizeRole;
+

@@ -1,8 +1,21 @@
 const request = require('supertest');
 const app = require('../../src/app');
+const config = require('../../src/config');
+const { signTestToken } = require('../../src/auth/jwt');
 const NotificationService = require('../../src/notifications/notificationService');
 const MockNotificationProvider = require('../../src/notifications/providers/MockNotificationProvider');
-const notificationRepository = require('../../src/notifications/notificationRepository');
+
+const TEST_SECRET = 'test-secret-for-notification-integration-tests-only';
+const originalJwtSecret = config.jwtSecret;
+const authHeader = (userId, role = 'user') => `Bearer ${signTestToken(userId, role)}`;
+
+beforeAll(() => {
+  config.jwtSecret = TEST_SECRET;
+});
+
+afterAll(() => {
+  config.jwtSecret = originalJwtSecret;
+});
 
 describe('Notifications Endpoints (Integration)', () => {
   let mockProvider;
@@ -45,7 +58,7 @@ describe('Notifications Endpoints (Integration)', () => {
   });
 
   describe('POST /api/notifications', () => {
-    it('dispatches notification and persists record with HTTP 201', async () => {
+    it('dispatches notification for the authenticated user and persists record with HTTP 201', async () => {
       const payload = {
         userId: 'usr-int-1',
         type: 'BUDGET_THRESHOLD',
@@ -54,6 +67,7 @@ describe('Notifications Endpoints (Integration)', () => {
 
       const res = await request(app)
         .post('/api/notifications')
+        .set('Authorization', authHeader('usr-int-1'))
         .send(payload);
 
       expect(res.status).toBe(201);
@@ -72,9 +86,38 @@ describe('Notifications Endpoints (Integration)', () => {
       expect(mockRepository.create).toHaveBeenCalledTimes(1);
     });
 
+    it('rejects requests without an authenticated session', async () => {
+      const res = await request(app)
+        .post('/api/notifications')
+        .send({
+          userId: 'usr-int-1',
+          type: 'LIMIT_EXCEEDED',
+          message: 'Budget limit exceeded!',
+        });
+
+      expect(res.status).toBe(401);
+      expect(res.body.error.code).toBe('MISSING_AUTHORIZATION');
+    });
+
+    it('returns 403 FORBIDDEN when an authenticated user tries to send notification for another user', async () => {
+      const res = await request(app)
+        .post('/api/notifications')
+        .set('Authorization', authHeader('usr-int-1'))
+        .send({
+          userId: 'other-user',
+          type: 'LIMIT_EXCEEDED',
+          message: 'Budget limit exceeded!',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+      expect(mockRepository.create).not.toHaveBeenCalled();
+    });
+
     it('returns 400 VALIDATION_ERROR when required fields are missing', async () => {
       const res = await request(app)
         .post('/api/notifications')
+        .set('Authorization', authHeader('usr-int-1'))
         .send({ userId: 'usr-int-1' });
 
       expect(res.status).toBe(400);
@@ -88,6 +131,7 @@ describe('Notifications Endpoints (Integration)', () => {
 
       const res = await request(app)
         .post('/api/notifications')
+        .set('Authorization', authHeader('usr-int-1'))
         .send({
           userId: 'usr-int-1',
           type: 'LIMIT_EXCEEDED',
@@ -103,10 +147,11 @@ describe('Notifications Endpoints (Integration)', () => {
   });
 
   describe('GET /api/notifications', () => {
-    it('returns in-app notification list for specified userId with HTTP 200', async () => {
+    it('returns in-app notification list for the authenticated user with HTTP 200', async () => {
       const res = await request(app)
         .get('/api/notifications')
-        .query({ userId: 'usr-int-1', limit: 10, offset: 0 });
+        .set('Authorization', authHeader('usr-int-1'))
+        .query({ limit: 10, offset: 0 });
 
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('ok', true);
@@ -123,9 +168,10 @@ describe('Notifications Endpoints (Integration)', () => {
       expect(res.body).toHaveProperty('offset', 0);
     });
 
-    it('returns in-app notification list via /user/:userId route with HTTP 200', async () => {
+    it('returns in-app notification list via /user/:userId route with HTTP 200 for the same authenticated user', async () => {
       const res = await request(app)
         .get('/api/notifications/user/usr-int-1')
+        .set('Authorization', authHeader('usr-int-1'))
         .query({ limit: 10, offset: 0 });
 
       expect(res.status).toBe(200);
@@ -134,12 +180,22 @@ describe('Notifications Endpoints (Integration)', () => {
       expect(res.body.notifications).toHaveLength(1);
     });
 
-    it('returns 404 NOT_FOUND when requesting notification base prefix without userId', async () => {
+    it('returns 403 FORBIDDEN when an authenticated user requests another user\'s notifications', async () => {
+      const res = await request(app)
+        .get('/api/notifications/user/other-user')
+        .set('Authorization', authHeader('usr-int-1'))
+        .query({ limit: 10, offset: 0 });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('returns 401 when no auth token is provided', async () => {
       const res = await request(app).get('/api/notifications');
 
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(401);
       expect(res.body).toHaveProperty('error');
-      expect(res.body.error.code).toBe('NOT_FOUND');
+      expect(res.body.error.code).toBe('MISSING_AUTHORIZATION');
     });
   });
 });

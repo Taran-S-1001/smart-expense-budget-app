@@ -10,6 +10,8 @@ import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
 import { BudgetsPage } from './features/budgets/BudgetsPage';
 import { TransactionsPage } from './features/transactions/TransactionsPage';
+import { AdminCategoriesPage } from './features/admin/AdminCategoriesPage';
+import { RemindersPage } from './features/reminders/RemindersPage';
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
             <Route path="accounts" element={<AccountsPage />} />
             <Route path="transactions" element={<TransactionsPage />} />
             <Route path="budgets" element={<BudgetsPage />} />
+            <Route path="reminders" element={<RemindersPage />} />
+            <Route path="admin/categories" element={<AdminCategoriesPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

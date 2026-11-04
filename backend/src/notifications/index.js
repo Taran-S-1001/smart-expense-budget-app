@@ -1,4 +1,5 @@
 const express = require('express');
+const { authenticateToken } = require('../auth/jwt');
 const NotificationService = require('./notificationService');
 const NotificationProvider = require('./providers/NotificationProvider');
 const MockNotificationProvider = require('./providers/MockNotificationProvider');
@@ -6,21 +7,46 @@ const notificationRepository = require('./notificationRepository');
 
 const router = express.Router();
 
+const enforceOwnNotifications = (req, res, targetUserId) => {
+  if (!targetUserId) {
+    return false;
+  }
+
+  if (req.user?.role === 'admin') {
+    return true;
+  }
+
+  if (req.user?.userId !== targetUserId) {
+    res.status(403).json({
+      error: {
+        code: 'FORBIDDEN',
+        message: 'You can only access notifications for your own account.',
+      },
+    });
+    return false;
+  }
+
+  return true;
+};
+
+router.use(authenticateToken);
+
 /**
  * GET /api/notifications
  * In-app notification list per SRS SEBM-F-050.
  * Query parameters: userId, limit, offset
- * Passes through if userId is not provided.
+ * Requires an authenticated session and only returns the caller's own notifications.
  */
 router.get('/', async (req, res, next) => {
   try {
-    const userId = req.user?.userId || req.query.userId;
-    if (!userId) {
-      return next(); // Pass through to 404 handler when no userId query or auth session is provided
+    const requestedUserId = req.query.userId || req.user.userId;
+
+    if (!enforceOwnNotifications(req, res, requestedUserId)) {
+      return;
     }
 
     const { limit, offset } = req.query;
-    const result = await NotificationService.listNotifications(userId, { limit, offset });
+    const result = await NotificationService.listNotifications(req.user.userId, { limit, offset });
 
     res.status(200).json({
       ok: true,
@@ -37,10 +63,16 @@ router.get('/', async (req, res, next) => {
 /**
  * GET /api/notifications/user/:userId
  * In-app notification list by explicit user ID route parameter.
+ * Only the owner or an admin can request a list for a user.
  */
 router.get('/user/:userId', async (req, res, next) => {
   try {
     const { userId } = req.params;
+
+    if (!enforceOwnNotifications(req, res, userId)) {
+      return;
+    }
+
     const { limit, offset } = req.query;
     const result = await NotificationService.listNotifications(userId, { limit, offset });
 
@@ -64,7 +96,13 @@ router.get('/user/:userId', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const { userId, type, message } = req.body || {};
-    const notification = await NotificationService.send({ userId, type, message });
+    const targetUserId = userId || req.user.userId;
+
+    if (!enforceOwnNotifications(req, res, targetUserId)) {
+      return;
+    }
+
+    const notification = await NotificationService.send({ userId: targetUserId, type, message });
 
     res.status(201).json({
       ok: true,
