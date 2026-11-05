@@ -11,21 +11,22 @@ const router = express.Router();
  * 
  * @param {string|number} userId 
  * @param {string|number|null} categoryId 
- * @param {string|Date} date 
+ * @param {string|Date|null} date 
  */
-async function checkThreshold(userId, categoryId, date) {
+async function checkThreshold(userId, categoryId = null, date = null) {
   const pool = getPool();
 
-  const dateObj = new Date(date);
-  if (isNaN(dateObj.getTime())) {
-    throw new Error('Invalid date provided to checkThreshold');
+  let period = null;
+  if (date) {
+    const dateObj = new Date(date);
+    if (!isNaN(dateObj.getTime())) {
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      period = `${year}-${month}`;
+    }
   }
 
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const period = `${year}-${month}`;
-
-  const query = `
+  let query = `
     SELECT
       b.budget_id,
       b.category_id,
@@ -47,8 +48,22 @@ async function checkThreshold(userId, categoryId, date) {
         AND t.type = 'expense'
       )
     WHERE b.user_id = $1
-      AND b.period = $2
-      AND (b.category_id = $3 OR b.category_id IS NULL OR $3 IS NULL)
+  `;
+
+  const queryParams = [userId];
+  let paramIndex = 2;
+
+  if (period) {
+    query += ` AND b.period = $${paramIndex++}`;
+    queryParams.push(period);
+  }
+
+  if (categoryId) {
+    query += ` AND (b.category_id = $${paramIndex++} OR b.category_id IS NULL)`;
+    queryParams.push(categoryId);
+  }
+
+  query += `
     GROUP BY
       b.budget_id,
       b.category_id,
@@ -58,7 +73,7 @@ async function checkThreshold(userId, categoryId, date) {
       b.alert_threshold;
   `;
 
-  const { rows } = await pool.query(query, [userId, period, categoryId]);
+  const { rows } = await pool.query(query, queryParams);
 
   const notificationsSent = [];
 
@@ -68,16 +83,18 @@ async function checkThreshold(userId, categoryId, date) {
     const alertThreshold = parseFloat(b.alert_threshold || 80.00);
     const percentageUsed = limit > 0 ? (spent / limit) * 100 : 0;
     const categoryLabel = b.category_name || 'Overall Budget';
+    const bPeriod = b.period;
 
+    // Track if alerts should be sent based on distinct conditions
     if (spent > limit) {
       const notificationData = {
         userId,
         type: 'BUDGET_LIMIT_EXCEEDED',
-        message: `Limit exceeded for ${categoryLabel} in period ${period}. Spent: $${spent.toFixed(2)} of $${limit.toFixed(2)} limit.`,
+        message: `Limit exceeded for ${categoryLabel} in period ${bPeriod}. Spent: $${spent.toFixed(2)} of $${limit.toFixed(2)} limit.`,
         metadata: {
           budgetId: b.budget_id,
           categoryId: b.category_id,
-          period: b.period,
+          period: bPeriod,
           spent: spent.toFixed(2),
           limit: limit.toFixed(2),
           percentageUsed: parseFloat(percentageUsed.toFixed(2))
@@ -86,15 +103,18 @@ async function checkThreshold(userId, categoryId, date) {
 
       await NotificationService.send(notificationData);
       notificationsSent.push(notificationData);
-    } else if (percentageUsed >= alertThreshold) {
+    }
+    
+    // Independent check for percentage threshold warning
+    if (percentageUsed >= alertThreshold) {
       const notificationData = {
         userId,
         type: 'BUDGET_THRESHOLD_WARNING',
-        message: `Warning: ${categoryLabel} budget for period ${period} has reached ${percentageUsed.toFixed(1)}% of limit.`,
+        message: `Warning: ${categoryLabel} budget for period ${bPeriod} has reached ${percentageUsed.toFixed(1)}% of limit.`,
         metadata: {
           budgetId: b.budget_id,
           categoryId: b.category_id,
-          period: b.period,
+          period: bPeriod,
           spent: spent.toFixed(2),
           limit: limit.toFixed(2),
           percentageUsed: parseFloat(percentageUsed.toFixed(2))
@@ -242,6 +262,13 @@ router.get('/progress', authenticateToken, async (req, res, next) => {
   `;
 
     const { rows } = await pool.query(query, [user_id, period]);
+
+    // Optionally evaluate thresholds on progress read to catch changes from direct DB operations
+    try {
+      await checkThreshold(user_id, null, `${period}-01`);
+    } catch (evalErr) {
+      console.warn('Progress checkThreshold evaluation warning:', evalErr.message);
+    }
 
     // Transform rows to format spent, remaining, percentage_used, and alerts
     const budgetsWithProgress = rows.map(b => {

@@ -104,6 +104,71 @@ router.get('/monthly', authenticateToken, async (req, res, next) => {
 });
 
 /**
+ * @route GET /api/reports/summary
+ * @desc Alias for black-box test expectations (TC-Rep-01)
+ * @access Private
+ */
+router.get('/summary', authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { start, end, year } = req.query;
+    let report;
+    if (start && end) {
+      report = await reportService.getWeeklyReportData(userId, start, end);
+    } else {
+      report = await reportService.getMonthlyReportData(userId, year || new Date().getFullYear());
+    }
+
+    // Build category breakdown to satisfy TC-Rep-01 expectations
+    const breakdownMap = {};
+    (report.transactions || []).forEach(t => {
+      const cat = t.category_name || 'Uncategorized';
+      if (!breakdownMap[cat]) {
+        breakdownMap[cat] = { category_name: cat, total: 0, income: 0, expenses: 0 };
+      }
+      const amt = parseFloat(t.amount || 0);
+      if (t.type === 'income') {
+        breakdownMap[cat].income += amt;
+      } else {
+        breakdownMap[cat].expenses += amt;
+      }
+      breakdownMap[cat].total += (t.type === 'income' ? amt : -amt);
+    });
+
+    const breakdown = Object.values(breakdownMap).map(b => ({
+      ...b,
+      income: b.income.toFixed(2),
+      expenses: b.expenses.toFixed(2),
+      total: b.total.toFixed(2)
+    }));
+
+    // Transform to match black-box test suite shape (period object, totals object, breakdown array)
+    const transformedReport = {
+      period: {
+        startDate: report.startDate || start,
+        endDate: report.endDate || end
+      },
+      totals: {
+        income: report.totalIncome || report.totals?.income || '0.00',
+        expenses: report.totalExpense || report.totals?.expenses || '0.00',
+        netSavings: report.netSavings || report.totals?.netSavings || '0.00'
+      },
+      breakdown,
+      transactionCount: report.transactionCount || (report.transactions ? report.transactions.length : 0),
+      transactions: report.transactions || []
+    };
+
+    res.status(200).json(transformedReport);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * @route GET /api/reports/export
  * @desc Export report as CSV or PDF (SEBM-F-041 / TC-Rep-02)
  * @access Private
@@ -125,7 +190,9 @@ router.get('/export', authenticateToken, async (req, res, next) => {
       });
     }
 
-    const { startDate, endDate, year } = req.query;
+    const startDate = req.query.startDate || req.query.start;
+    const endDate = req.query.endDate || req.query.end;
+    const { year } = req.query;
 
     let reportData;
     if (startDate || endDate) {
@@ -133,7 +200,7 @@ router.get('/export', authenticateToken, async (req, res, next) => {
         return res.status(400).json({
           error: {
             code: 'MISSING_PARAMETERS',
-            message: 'Both startDate and endDate query parameters are required for date-range exports.'
+            message: 'Both start/startDate and end/endDate query parameters are required for date-range exports.'
           }
         });
       }
@@ -194,6 +261,58 @@ router.get('/comparison', authenticateToken, async (req, res, next) => {
       userId, currentStart, currentEnd, prevStart, prevEnd
     );
     res.json(comparisonReport);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @route GET /api/reports/compare
+ * @desc Alias for black-box test expectations (TC-Rep-03) using start/end/previousStart/previousEnd
+ * @access Private
+ */
+router.get('/compare', authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const start = req.query.start || req.query.currentStart;
+    const end = req.query.end || req.query.currentEnd;
+    const previousStart = req.query.previousStart || req.query.prevStart;
+    const previousEnd = req.query.previousEnd || req.query.prevEnd;
+    const metric = req.query.metric || 'expenses';
+
+    if (!start || !end || !previousStart || !previousEnd) {
+      return res.status(400).json({
+        error: {
+          code: 'MISSING_PARAMETERS',
+          message: 'start, end, previousStart, and previousEnd query parameters are required.',
+        },
+      });
+    }
+
+    const comparisonReport = await reportService.getPeriodComparisonData(
+      userId, start, end, previousStart, previousEnd
+    );
+
+    // Extract numeric percentage change for TC-Rep-03 expectations
+    let rawPercentage = 0;
+    const targetChangeStr = metric === 'income' ? comparisonReport.incomeChange : comparisonReport.expenseChange;
+    if (targetChangeStr) {
+      rawPercentage = parseFloat(String(targetChangeStr).replace('%', '').replace('+', '')) || 0;
+    }
+
+    const transformedComparison = {
+      comparison: {
+        metric,
+        percentageChange: rawPercentage,
+        ...comparisonReport
+      }
+    };
+
+    res.status(200).json(transformedComparison);
   } catch (err) {
     next(err);
   }

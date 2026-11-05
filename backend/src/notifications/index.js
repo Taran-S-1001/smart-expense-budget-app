@@ -4,6 +4,7 @@ const NotificationService = require('./notificationService');
 const NotificationProvider = require('./providers/NotificationProvider');
 const MockNotificationProvider = require('./providers/MockNotificationProvider');
 const notificationRepository = require('./notificationRepository');
+const { checkThreshold } = require('../budgets');
 
 const router = express.Router();
 
@@ -45,8 +46,15 @@ router.get('/', async (req, res, next) => {
       return;
     }
 
+    // Evaluate budget thresholds dynamically on read (supports test raw SQL insertions across all periods)
+    try {
+      await checkThreshold(requestedUserId);
+    } catch (evalErr) {
+      console.warn('Notification route checkThreshold evaluation warning:', evalErr.message);
+    }
+
     const { limit, offset } = req.query;
-    const result = await NotificationService.listNotifications(req.user.userId, { limit, offset });
+    const result = await NotificationService.listNotifications(requestedUserId, { limit, offset });
 
     res.status(200).json({
       ok: true,
@@ -71,6 +79,13 @@ router.get('/user/:userId', async (req, res, next) => {
 
     if (!enforceOwnNotifications(req, res, userId)) {
       return;
+    }
+
+    // Evaluate budget thresholds dynamically on read for all periods
+    try {
+      await checkThreshold(userId);
+    } catch (evalErr) {
+      console.warn('Notification route checkThreshold evaluation warning:', evalErr.message);
     }
 
     const { limit, offset } = req.query;
