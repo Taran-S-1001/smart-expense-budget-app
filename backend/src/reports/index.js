@@ -137,10 +137,12 @@ router.get('/summary', authenticateToken, async (req, res, next) => {
 
     const { start, end, year } = req.query;
     let report;
+    const targetYear = year || new Date().getFullYear();
+
     if (start && end) {
       report = await reportService.getWeeklyReportData(userId, start, end);
     } else {
-      report = await reportService.getMonthlyReportData(userId, year || new Date().getFullYear());
+      report = await reportService.getMonthlyReportData(userId, targetYear);
     }
 
     // Build category breakdown to satisfy TC-Rep-01 expectations
@@ -166,11 +168,15 @@ router.get('/summary', authenticateToken, async (req, res, next) => {
       total: b.total.toFixed(2)
     }));
 
+    // Ensure resolved period dates are always populated for both start/end and year-based requests
+    const resolvedStartDate = start || report.startDate || `${targetYear}-01-01`;
+    const resolvedEndDate = end || report.endDate || `${targetYear}-12-31`;
+
     // Transform to match black-box test suite shape (period object, totals object, breakdown array)
     const transformedReport = {
       period: {
-        startDate: report.startDate || start,
-        endDate: report.endDate || end
+        startDate: resolvedStartDate,
+        endDate: resolvedEndDate
       },
       totals: {
         income: report.totalIncome || report.totals?.income || '0.00',

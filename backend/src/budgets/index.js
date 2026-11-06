@@ -85,34 +85,32 @@ async function checkThreshold(userId, categoryId = null, date = null) {
     const categoryLabel = b.category_name || 'Overall Budget';
     const bPeriod = b.period;
 
-    // Helper to check if this specific alert type was already sent for this budget/period
-    async function hasAlertAlreadyBeenSent(type) {
+    // Helper to check if this specific alert message snippet was already sent for this period
+    async function hasAlertAlreadyBeenSent(alertSnippet) {
       try {
         const checkQuery = `
           SELECT 1 FROM notifications 
           WHERE user_id = $1 
-            AND type = $2 
-            AND metadata->>'budgetId' = $3 
-            AND metadata->>'period' = $4 
+            AND message LIKE $2 
+            AND created_at >= NOW() - INTERVAL '1 day'
           LIMIT 1;
         `;
-        const res = await pool.query(checkQuery, [userId, type, String(b.budget_id), bPeriod]);
+        const res = await pool.query(checkQuery, [userId, `%${alertSnippet}%`]);
         return res.rows.length > 0;
       } catch (e) {
-        // If metadata querying isn't supported or fails, fallback to allowing dispatch
         return false;
       }
     }
 
     // Track if alerts should be sent based on distinct conditions
     if (spent > limit) {
-      const alertType = 'BUDGET_LIMIT_EXCEEDED';
-      const alreadySent = await hasAlertAlreadyBeenSent(alertType);
+      const alertSnippet = `Limit exceeded for ${categoryLabel} in period ${bPeriod}`;
+      const alreadySent = await hasAlertAlreadyBeenSent(alertSnippet);
 
       if (!alreadySent) {
         const notificationData = {
           userId,
-          type: alertType,
+          type: 'BUDGET_LIMIT_EXCEEDED',
           message: `Limit exceeded for ${categoryLabel} in period ${bPeriod}. Spent: $${spent.toFixed(2)} of $${limit.toFixed(2)} limit.`,
           metadata: {
             budgetId: b.budget_id,
@@ -131,13 +129,13 @@ async function checkThreshold(userId, categoryId = null, date = null) {
     
     // Independent check for percentage threshold warning
     if (percentageUsed >= alertThreshold) {
-      const alertType = 'BUDGET_THRESHOLD_WARNING';
-      const alreadySent = await hasAlertAlreadyBeenSent(alertType);
+      const alertSnippet = `Warning: ${categoryLabel} budget for period ${bPeriod} has reached`;
+      const alreadySent = await hasAlertAlreadyBeenSent(alertSnippet);
 
       if (!alreadySent) {
         const notificationData = {
           userId,
-          type: alertType,
+          type: 'BUDGET_THRESHOLD_WARNING',
           message: `Warning: ${categoryLabel} budget for period ${bPeriod} has reached ${percentageUsed.toFixed(1)}% of limit.`,
           metadata: {
             budgetId: b.budget_id,
