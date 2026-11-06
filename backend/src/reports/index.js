@@ -95,9 +95,29 @@ router.get('/monthly', authenticateToken, async (req, res, next) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { year } = req.query;
-    const report = await reportService.getMonthlyReportData(userId, year);
-    res.json(report);
+    const { year, startDate, endDate } = req.query;
+    const targetYear = year || new Date().getFullYear();
+
+    if (year && !/^\d{4}$/.test(String(year))) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_YEAR_FORMAT',
+          message: 'Invalid year format. Must be a valid 4-digit year.'
+        }
+      });
+    }
+
+    const report = await reportService.getMonthlyReportData(userId, targetYear);
+
+    // Ensure start and end dates are populated for both date-range and year-based paths
+    const resolvedStartDate = startDate || `${targetYear}-01-01`;
+    const resolvedEndDate = endDate || `${targetYear}-12-31`;
+
+    res.status(200).json({
+      startDate: resolvedStartDate,
+      endDate: resolvedEndDate,
+      ...report
+    });
   } catch (err) {
     next(err);
   }
@@ -297,18 +317,29 @@ router.get('/compare', authenticateToken, async (req, res, next) => {
       userId, start, end, previousStart, previousEnd
     );
 
-    // Extract numeric percentage change for TC-Rep-03 expectations
+    // Extract numeric percentage change from comparisonReport.comparison properly
     let rawPercentage = 0;
-    const targetChangeStr = metric === 'income' ? comparisonReport.incomeChange : comparisonReport.expenseChange;
+    const compObj = comparisonReport.comparison || {};
+
+    let targetChangeStr;
+    if (metric === 'income') {
+      targetChangeStr = compObj.incomeChange;
+    } else if (metric === 'netSavings' || metric === 'savings') {
+      targetChangeStr = compObj.netSavingsChange;
+    } else {
+      targetChangeStr = compObj.expenseChange;
+    }
+
     if (targetChangeStr) {
       rawPercentage = parseFloat(String(targetChangeStr).replace('%', '').replace('+', '')) || 0;
     }
 
     const transformedComparison = {
+      ...comparisonReport,
       comparison: {
+        ...compObj,
         metric,
         percentageChange: rawPercentage,
-        ...comparisonReport
       }
     };
 

@@ -46,7 +46,7 @@ router.get('/', async (req, res, next) => {
       return;
     }
 
-    // Evaluate budget thresholds dynamically on read (supports test raw SQL insertions across all periods)
+    // Evaluate budget thresholds dynamically on read (now fully idempotent)
     try {
       await checkThreshold(requestedUserId);
     } catch (evalErr) {

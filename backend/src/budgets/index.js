@@ -85,44 +85,73 @@ async function checkThreshold(userId, categoryId = null, date = null) {
     const categoryLabel = b.category_name || 'Overall Budget';
     const bPeriod = b.period;
 
+    // Helper to check if this specific alert type was already sent for this budget/period
+    async function hasAlertAlreadyBeenSent(type) {
+      try {
+        const checkQuery = `
+          SELECT 1 FROM notifications 
+          WHERE user_id = $1 
+            AND type = $2 
+            AND metadata->>'budgetId' = $3 
+            AND metadata->>'period' = $4 
+          LIMIT 1;
+        `;
+        const res = await pool.query(checkQuery, [userId, type, String(b.budget_id), bPeriod]);
+        return res.rows.length > 0;
+      } catch (e) {
+        // If metadata querying isn't supported or fails, fallback to allowing dispatch
+        return false;
+      }
+    }
+
     // Track if alerts should be sent based on distinct conditions
     if (spent > limit) {
-      const notificationData = {
-        userId,
-        type: 'BUDGET_LIMIT_EXCEEDED',
-        message: `Limit exceeded for ${categoryLabel} in period ${bPeriod}. Spent: $${spent.toFixed(2)} of $${limit.toFixed(2)} limit.`,
-        metadata: {
-          budgetId: b.budget_id,
-          categoryId: b.category_id,
-          period: bPeriod,
-          spent: spent.toFixed(2),
-          limit: limit.toFixed(2),
-          percentageUsed: parseFloat(percentageUsed.toFixed(2))
-        }
-      };
+      const alertType = 'BUDGET_LIMIT_EXCEEDED';
+      const alreadySent = await hasAlertAlreadyBeenSent(alertType);
 
-      await NotificationService.send(notificationData);
-      notificationsSent.push(notificationData);
+      if (!alreadySent) {
+        const notificationData = {
+          userId,
+          type: alertType,
+          message: `Limit exceeded for ${categoryLabel} in period ${bPeriod}. Spent: $${spent.toFixed(2)} of $${limit.toFixed(2)} limit.`,
+          metadata: {
+            budgetId: b.budget_id,
+            categoryId: b.category_id,
+            period: bPeriod,
+            spent: spent.toFixed(2),
+            limit: limit.toFixed(2),
+            percentageUsed: parseFloat(percentageUsed.toFixed(2))
+          }
+        };
+
+        await NotificationService.send(notificationData);
+        notificationsSent.push(notificationData);
+      }
     }
     
     // Independent check for percentage threshold warning
     if (percentageUsed >= alertThreshold) {
-      const notificationData = {
-        userId,
-        type: 'BUDGET_THRESHOLD_WARNING',
-        message: `Warning: ${categoryLabel} budget for period ${bPeriod} has reached ${percentageUsed.toFixed(1)}% of limit.`,
-        metadata: {
-          budgetId: b.budget_id,
-          categoryId: b.category_id,
-          period: bPeriod,
-          spent: spent.toFixed(2),
-          limit: limit.toFixed(2),
-          percentageUsed: parseFloat(percentageUsed.toFixed(2))
-        }
-      };
+      const alertType = 'BUDGET_THRESHOLD_WARNING';
+      const alreadySent = await hasAlertAlreadyBeenSent(alertType);
 
-      await NotificationService.send(notificationData);
-      notificationsSent.push(notificationData);
+      if (!alreadySent) {
+        const notificationData = {
+          userId,
+          type: alertType,
+          message: `Warning: ${categoryLabel} budget for period ${bPeriod} has reached ${percentageUsed.toFixed(1)}% of limit.`,
+          metadata: {
+            budgetId: b.budget_id,
+            categoryId: b.category_id,
+            period: bPeriod,
+            spent: spent.toFixed(2),
+            limit: limit.toFixed(2),
+            percentageUsed: parseFloat(percentageUsed.toFixed(2))
+          }
+        };
+
+        await NotificationService.send(notificationData);
+        notificationsSent.push(notificationData);
+      }
     }
   }
 
