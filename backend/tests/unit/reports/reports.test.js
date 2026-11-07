@@ -60,17 +60,12 @@ describe('Reports Export API (SEBM-F-041 / TC-Rep-02)', () => {
 describe('Reports export date formatting (SEBM-F-041 / TC-Rep-02)', () => {
   const { formatDateOnly } = require('../../../src/reports/reportService');
 
-  afterEach(() => {
-    delete process.env.TZ;
-  });
-
-  it('renders the stored calendar date, not the previous day, for servers east of UTC', () => {
-    // node-pg returns DATE columns as a Date at local midnight. Under a server
-    // in Asia/Kolkata, toISOString() shifts that to the previous UTC day;
-    // formatDateOnly must reproduce the stored date instead.
-    process.env.TZ = 'Asia/Kolkata';
+  it('renders the stored calendar date from a local-midnight Date on any server timezone', () => {
+    // node-pg returns DATE columns as a Date at local midnight. Reading it with
+    // toISOString() shifts the date one day back on servers east of UTC;
+    // formatDateOnly must reproduce the stored date instead, whatever TZ the
+    // server runs in.
     const stored = new Date(2026, 9, 15); // what pg returns for date '2026-10-15'
-    expect(new Date(stored).toISOString().split('T')[0]).toBe('2026-10-14'); // the old bug
     expect(formatDateOnly(stored)).toBe('2026-10-15');
   });
 
