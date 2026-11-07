@@ -168,6 +168,59 @@ const parsePositiveInteger = (value, defaultValue, label) => {
   return parsedValue;
 };
 
+
+/**
+ * Build PostgreSQL TLS options. Certificate verification is enabled by default;
+ * disabling it is intended only for local development with a self-signed cert.
+ */
+const parseDbSsl = (enabled, rejectUnauthorized) => {
+  const normalizedEnabled = typeof enabled === 'string' ? enabled.trim().toLowerCase() : enabled;
+  if (normalizedEnabled !== true && normalizedEnabled !== 'true') {
+    return false;
+  }
+
+  const normalizedVerification = typeof rejectUnauthorized === 'string'
+    ? rejectUnauthorized.trim().toLowerCase()
+    : rejectUnauthorized;
+  return { rejectUnauthorized: normalizedVerification !== false && normalizedVerification !== 'false' };
+};
+
+/**
+ * Refuse to start a production deployment unless application traffic and
+ * PostgreSQL traffic are encrypted. At-rest encryption remains a storage
+ * provider responsibility and cannot be detected from this application.
+ */
+const validateProductionSecurity = (env = process.env) => {
+  if ((env.NODE_ENV || 'development') !== 'production') {
+    return true;
+  }
+
+  const dbSsl = parseDbSsl(env.DB_SSL, env.DB_SSL_REJECT_UNAUTHORIZED);
+  if (!dbSsl || dbSsl.rejectUnauthorized !== true) {
+    throw new Error(
+      'Production security error: set DB_SSL=true and keep DB_SSL_REJECT_UNAUTHORIZED=true to require verified PostgreSQL TLS.'
+    );
+  }
+
+  const directTls = env.TLS_ENABLED === 'true';
+  const proxyHttps = env.ENFORCE_HTTPS === 'true';
+  if (!directTls && !proxyHttps) {
+    throw new Error(
+      'Production security error: enable TLS_ENABLED=true or enforce HTTPS behind a trusted reverse proxy with ENFORCE_HTTPS=true.'
+    );
+  }
+
+  if (!directTls && proxyHttps && parseTrustProxy(env.TRUST_PROXY, 'production') === false) {
+    throw new Error(
+      'Production security error: configure an explicit TRUST_PROXY value when HTTPS is terminated by a reverse proxy.'
+    );
+  }
+
+  return true;
+};
+
+validateProductionSecurity(process.env);
+
 const config = {
   port: parseInt(process.env.PORT || '4000', 10),
   get nodeEnv() {
@@ -211,13 +264,15 @@ const config = {
     },
     user: process.env.DB_USER || process.env.POSTGRES_USER || process.env.PGUSER || 'sebm',
     password: process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD || 'sebm_dev_password',
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    ssl: parseDbSsl(process.env.DB_SSL, process.env.DB_SSL_REJECT_UNAUTHORIZED),
     max: parseInt(process.env.DB_POOL_MAX || '10', 10),
     idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000', 10),
     connectionTimeoutMillis: parseInt(process.env.DB_CONN_TIMEOUT || '2000', 10),
   },
   parseTrustProxy,
   parseTlsMinVersion,
+  parseDbSsl,
+  validateProductionSecurity,
   isValidProxyAddressOrRange,
   parsePositiveInteger,
 };

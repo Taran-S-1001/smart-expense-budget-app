@@ -27,8 +27,8 @@ a {
   color: inherit;
 }
 
-a:focus-visible {
-  outline: 3px solid #84c7a1;
+:focus-visible {
+  outline: 3px solid #1d5a3c;
   outline-offset: 3px;
 }
 
@@ -78,7 +78,7 @@ a:focus-visible {
 .sidebar-label,
 .eyebrow {
   margin: 0;
-  color: #72907d;
+  color: #536b5a;
   font-size: 0.71rem;
   font-weight: 700;
   letter-spacing: 0.13em;
@@ -556,7 +556,7 @@ a:focus-visible {
 .transaction-notes {
   display: block;
   margin-top: 4px;
-  color: #738178;
+  color: #65766b;
   font-size: 0.78rem;
 }
 
@@ -574,7 +574,7 @@ a:focus-visible {
 }
 
 .field-note {
-  color: #738178;
+  color: #65766b;
   font-weight: 400;
 }
 
@@ -641,7 +641,7 @@ a:focus-visible {
 }
 
 .account-list-heading > span {
-  color: #738178;
+  color: #65766b;
   font-size: 0.8rem;
 }
 
@@ -696,7 +696,7 @@ a:focus-visible {
 }
 
 .account-details span {
-  color: #738178;
+  color: #65766b;
   font-size: 0.8rem;
   text-transform: capitalize;
 }
