@@ -199,9 +199,22 @@ function formatDateOnly(value) {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Format an amount for the PDF export with the same rupee currency the app UI
+ * uses (₹ with Indian digit grouping), instead of a hard-coded dollar sign.
+ */
+function formatPdfAmount(value) {
+  const amount = Number(value) || 0;
+  return `₹${amount.toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 module.exports = {
   getWeeklyReportData,
   getMonthlyReportData,
   getPeriodComparisonData,
   formatDateOnly,
+  formatPdfAmount,
 };

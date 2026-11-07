@@ -2,57 +2,10 @@ const express = require('express');
 const router = express.Router();
 const reportService = require('./reportService');
 const { authenticateToken } = require('../auth/jwt');
-const PDFDocument = require('pdfkit');
+const { generateCsv, generatePdf } = require('./exportGenerators');
 
 // Scaffold for Reports module (SEBM-F-040..042)
 // Owner: Dev C (Sujay P Nayak) - Stories S2-09, S2-10, S2-11
-
-// Helper: Generate CSV format
-const generateCsv = (transactions) => {
-  let csv = 'Transaction ID,Date,Type,Amount,Category,Notes\n';
-  transactions.forEach(t => {
-    const dateStr = reportService.formatDateOnly(t.date);
-    const notes = (t.notes || '').replace(/"/g, '""');
-    const category = (t.category_name || 'Uncategorized').replace(/"/g, '""');
-    csv += `${t.transaction_id},${dateStr},${t.type},${t.amount},"${category}","${notes}"\n`;
-  });
-  return csv;
-};
-
-// Helper: Generate PDF format using pdfkit
-const generatePdf = (reportData, res) => {
-  const doc = new PDFDocument({ margin: 50 });
-  doc.pipe(res);
-
-  doc.fontSize(20).text('Financial Expense Report', { align: 'center' });
-  doc.moveDown();
-  doc.fontSize(10).text(`Generated At: ${new Date().toISOString()}`, { align: 'right' });
-  doc.moveDown();
-
-  doc.fontSize(14).text('Summary Overview', { underline: true });
-  doc.moveDown(0.5);
-  doc.fontSize(10).text(`Total Income: $${reportData.totalIncome}`);
-  doc.text(`Total Expense: $${reportData.totalExpense}`);
-  doc.text(`Net Savings: $${reportData.netSavings}`);
-  doc.text(`Total Transactions: ${reportData.transactions.length}`);
-  doc.moveDown();
-
-  doc.fontSize(14).text('Transaction Details', { underline: true });
-  doc.moveDown(0.5);
-
-  if (reportData.transactions.length === 0) {
-    doc.fontSize(10).text('No transactions found for the specified period.');
-  } else {
-    reportData.transactions.forEach((t, index) => {
-      const dateStr = reportService.formatDateOnly(t.date) || 'N/A';
-      doc.fontSize(9).text(
-        `${index + 1}. [${dateStr}] ${t.type.toUpperCase()} $${t.amount} | Category: ${t.category_name || 'N/A'} | Notes: ${t.notes || 'None'}`
-      );
-    });
-  }
-
-  doc.end();
-};
 
 /**
  * @route GET /api/reports/weekly
