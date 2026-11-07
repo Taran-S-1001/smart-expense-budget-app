@@ -122,6 +122,69 @@ describe('AccountsPage transfer form (SEBM-F-031, TC-Acc-02)', () => {
     );
   });
 
+  it('retargets the transfer selectors when a second account is created', async () => {
+    // Regression: with a single account both selectors hold that account's id.
+    // Creating a second account must move the destination to the new account so
+    // a transfer submits two different accounts without manual reselection.
+    const firstAccount = {
+      accountId: 'account-everyday',
+      accountName: 'Everyday checking',
+      accountType: 'bank',
+      balance: '1000.00',
+    };
+    const secondAccount = {
+      accountId: 'account-savings',
+      accountName: 'Savings',
+      accountType: 'bank',
+      balance: '500.00',
+    };
+    let accountList = [firstAccount];
+    api.get.mockImplementation(() => Promise.resolve({ accounts: accountList }));
+    api.post.mockImplementation((path) => {
+      if (path === '/accounts') {
+        accountList = [secondAccount, ...accountList];
+        return Promise.resolve({ account: secondAccount });
+      }
+      if (path === '/accounts/transfer') return Promise.resolve({ transferId: 'transfer-1' });
+      return Promise.reject(new Error(`Unexpected POST ${path}`));
+    });
+
+    const user = userEvent.setup();
+    renderAccountsPage();
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    });
+    await screen.findByText('Everyday checking');
+    expect(
+      screen.getByText('Create at least two accounts to transfer money between them.'),
+    ).toBeTruthy();
+
+    await user.type(screen.getByLabelText(/Account name/), 'Savings');
+    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    await screen.findByText('Account created.');
+
+    const fromSelect = screen.getByLabelText('From account');
+    const toSelect = screen.getByLabelText('To account');
+    expect(fromSelect.value).toBe('account-everyday');
+    expect(toSelect.value).toBe('account-savings');
+
+    await user.type(screen.getByLabelText('Amount'), '100');
+    await user.click(screen.getByRole('button', { name: 'Transfer' }));
+
+    expect(await screen.findByText('Transfer complete. Balances updated.')).toBeTruthy();
+    expect(api.post).toHaveBeenCalledWith(
+      '/accounts/transfer',
+      {
+        fromAccountId: 'account-everyday',
+        toAccountId: 'account-savings',
+        amount: 100,
+      },
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer test-token' },
+      }),
+    );
+  });
+
   it('keeps the source account out of the destination choices', async () => {
     const user = userEvent.setup();
     renderAccountsPage();

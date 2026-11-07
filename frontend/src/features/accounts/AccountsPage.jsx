@@ -21,6 +21,22 @@ export function AccountsPage() {
   const [transferError, setTransferError] = useState('');
   const [transferNotice, setTransferNotice] = useState('');
   const requestControllers = useRef(new Set());
+  const transferSelectionRef = useRef({ from: '', to: '' });
+  transferSelectionRef.current = { from: fromAccountId, to: toAccountId };
+
+  // Keep the transfer selectors pointing at real, different accounts in the list.
+  const resolveTransferSelection = (accountsList, currentFrom, currentTo) => {
+    const from = accountsList.some((account) => account.accountId === currentFrom)
+      ? currentFrom
+      : accountsList[0]?.accountId || '';
+    const to =
+      currentTo &&
+      currentTo !== from &&
+      accountsList.some((account) => account.accountId === currentTo)
+        ? currentTo
+        : accountsList.find((account) => account.accountId !== from)?.accountId || '';
+    return { from, to };
+  };
 
   const loadAccounts = useCallback(async () => {
     if (!accessToken) {
@@ -42,16 +58,13 @@ export function AccountsPage() {
       if (!controller.signal.aborted) {
         setAccounts(response.accounts);
         setAccountsToken(accessToken);
-        setFromAccountId((current) =>
-          response.accounts.some((account) => account.accountId === current)
-            ? current
-            : response.accounts[0]?.accountId || '',
+        const selection = resolveTransferSelection(
+          response.accounts,
+          transferSelectionRef.current.from,
+          transferSelectionRef.current.to,
         );
-        setToAccountId((current) =>
-          response.accounts.some((account) => account.accountId === current)
-            ? current
-            : response.accounts[1]?.accountId || response.accounts[0]?.accountId || '',
-        );
+        setFromAccountId(selection.from);
+        setToAccountId(selection.to);
       }
     } catch (requestError) {
       if (!controller.signal.aborted) setError(requestError.message);
@@ -93,8 +106,14 @@ export function AccountsPage() {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
-      setAccounts((currentAccounts) => [response.account, ...currentAccounts]);
+      const nextAccounts = [response.account, ...accounts];
+      setAccounts(nextAccounts);
       setAccountsToken(accessToken);
+      // Creating an account can leave both selectors holding the same id (e.g. the
+      // second account added while only one existed); retarget them on the new list.
+      const selection = resolveTransferSelection(nextAccounts, fromAccountId, toAccountId);
+      setFromAccountId(selection.from);
+      setToAccountId(selection.to);
       setAccountName('');
       setOpeningBalance('');
       setNotice('Account created.');
