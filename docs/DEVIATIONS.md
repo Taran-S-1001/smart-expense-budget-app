@@ -2,7 +2,7 @@
 
 Documents referred to: SRS v4.0, Test Plan v1.1, SAD v1.1. The submitted documents are not edited again; every difference between them and what is built is recorded here and explained at the final demo. Only the Scrum Master (Dev A) edits this file. Team members report a deviation by commenting on their issue with the `deviation` label and stating it in their PR description.
 
-Status: **Confirmed** = decided and in effect. **Dropped** = expected earlier but did not happen, so it is no longer a deviation. Final review for S2-15 (issue #40) done on 07-11-2026 against `main` at 3f029ee, using SRS v4.0, SAD v1.1, Test Plan v1.1 and SPRINT_PLAN.md. No Candidate rows are left open.
+Status: **Confirmed** = decided and in effect. **Dropped** = expected earlier but did not happen, so it is no longer a deviation. Final review for S2-15 (issue #40) done on 07-11-2026 against `main` at fa7c26d, using SRS v4.0, SAD v1.1, Test Plan v1.1 and SPRINT_PLAN.md. No Candidate rows are left open.
 
 | ID | Date | What differs | Document and section | Reason | Impact | Status |
 |---|---|---|---|---|---|---|
