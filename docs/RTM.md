@@ -1,6 +1,6 @@
 # Requirements Traceability Matrix (RTM)
 
-Final status for S2-15 (issue #40), checked on 07-11-2026 against `main` at fa7c26d. Requirement IDs, modules and test case IDs come from SRS v4.0 Section 8 and Test Plan Section 13. The submitted documents are not edited (see `docs/DEVIATIONS.md`); this file records the status instead of their N/P/A column, whose meaning the SRS does not define.
+Final status for S2-15 (issue #40), checked on 07-11-2026 against `main` at fa7c26d. Post-review update 07-11-2026: user-facing UI added for F-031, F-040, F-041 and F-042 (previously API-only); see the four rows below. Requirement IDs, modules and test case IDs come from SRS v4.0 Section 8 and Test Plan Section 13. The submitted documents are not edited (see `docs/DEVIATIONS.md`); this file records the status instead of their N/P/A column, whose meaning the SRS does not define.
 
 How to read the columns:
 - **TC tag in tests**: whether the test case ID appears in a test file under `backend/tests`. "No" means the ID is not used there, not that the feature is untested.
@@ -20,10 +20,10 @@ How to read the columns:
 | SEBM-F-021 | Track spend vs budget | Budgets | TC-Bud-02 | Yes | Built | Automated tests on main (unit, integration, independent) |  |
 | SEBM-F-022 | Budget threshold warning | Budgets | TC-Bud-03 | Yes | Built | Automated tests on main (unit, integration, independent) | Crossing a limit sends both the threshold warning and the limit-exceeded alert (#89). |
 | SEBM-F-030 | Multi-account management | Accounts | TC-Acc-01 | Yes | Built | Automated tests on main (unit, integration, independent) |  |
-| SEBM-F-031 | Account-to-account transfer | Accounts | TC-Acc-02 | Yes | Built | Automated tests on main (unit, integration, independent) | S2-07. |
-| SEBM-F-040 | Generate report | Reports | TC-Rep-01 | Yes | Built | Automated tests on main (unit, integration, independent) | Report routes fixed in #89. |
-| SEBM-F-041 | Export report (PDF/CSV) | Reports | TC-Rep-02 | Yes | Built | Automated tests on main (unit, integration) | S2-10, #77. |
-| SEBM-F-042 | Period-over-period comparison | Reports | TC-Rep-03 | Yes | Built | Automated tests on main (unit, integration, independent) | S2-11, #77. Stretch story, done (DEV-08 dropped). |
+| SEBM-F-031 | Account-to-account transfer | Accounts | TC-Acc-02 | Yes | Built | Automated tests on main (unit, integration, independent); frontend tests for the transfer form | S2-07. Transfer form on the Accounts page added 07-11-2026; insufficient balance shows the backend rejection. |
+| SEBM-F-040 | Generate report | Reports | TC-Rep-01 | Yes | Built | Automated tests on main (unit, integration, independent); frontend tests for the Reports page | Report routes fixed in #89. Reports page with weekly/monthly totals and category and month-by-month charts added 07-11-2026. |
+| SEBM-F-041 | Export report (PDF/CSV) | Reports | TC-Rep-02 | Yes | Built | Automated tests on main (unit, integration); frontend test that export uses the on-screen selection | S2-10, #77. Reports page downloads the shown selection as CSV or PDF (added 07-11-2026). |
+| SEBM-F-042 | Period-over-period comparison | Reports | TC-Rep-03 | Yes | Built | Automated tests on main (unit, integration, independent); frontend test for the comparison cards | S2-11, #77. Stretch story, done (DEV-08 dropped). Period comparison with percentage change on the Reports page (added 07-11-2026). |
 | SEBM-F-050 | Budget-threshold alert notification | Notifications | TC-Notif-01 | Yes | Built (mock provider) | Automated tests on main (unit, integration, independent) | In-app only, no push or email (DEV-04). |
 | SEBM-F-051 | Bill payment reminder | Notifications | TC-Notif-02 | Yes | Built | Automated tests on main (unit, integration, independent) | S2-13, stretch story, done (DEV-08 dropped). |
 | SEBM-NF-001 | Response time target | Backend API | TC-Perf-01 | Yes | Benchmark script added | Not verified: not run against staging | See DEV-12 and `docs/NFR_VERIFICATION.md`. |

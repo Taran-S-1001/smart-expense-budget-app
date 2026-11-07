@@ -907,3 +907,243 @@ a {
 .transaction-form .primary-button + .secondary-button {
   margin-left: 0.5rem;
 }
+
+/* Reports page (SEBM-F-040/041/042) and account transfers (SEBM-F-031) */
+
+.report-mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.report-mode-toggle .active-toggle {
+  border-color: #1d5a3c;
+  color: #123c2b;
+  background: #dcefdd;
+}
+
+.report-results,
+.comparison-results {
+  margin-top: 26px;
+}
+
+.export-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-stat {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid #dce8dd;
+  border-radius: 12px;
+  background: #f2f8f2;
+}
+
+.report-stat span {
+  color: #536b5a;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.report-stat strong {
+  font-size: 1.15rem;
+}
+
+.report-chart {
+  margin-top: 24px;
+}
+
+.report-chart h4 {
+  margin: 0 0 12px;
+}
+
+.chart-rows {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 140px) 1fr minmax(140px, auto);
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-label {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.chart-bars {
+  display: grid;
+  gap: 4px;
+}
+
+.chart-bar {
+  display: block;
+  height: 12px;
+  min-width: 2px;
+  border-radius: 4px;
+}
+
+.chart-bar.expense,
+.legend-swatch.expense {
+  background: #b3452e;
+}
+
+.chart-bar.income,
+.legend-swatch.income {
+  background: #2f7d4f;
+}
+
+.chart-value {
+  color: #466951;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  color: #536b5a;
+  font-size: 0.8rem;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 10px;
+  border-radius: 3px;
+}
+
+.legend-swatch:first-child {
+  margin-left: 0;
+}
+
+.month-chart {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 6px;
+  align-items: end;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.month-column {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.month-bars {
+  display: flex;
+  align-items: end;
+  gap: 3px;
+  height: 120px;
+}
+
+.month-bar {
+  display: block;
+  width: 10px;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+}
+
+.month-bar.income {
+  background: #2f7d4f;
+}
+
+.month-bar.expense {
+  background: #b3452e;
+}
+
+.month-label {
+  color: #536b5a;
+  font-size: 0.72rem;
+}
+
+.comparison-form {
+  margin-top: 30px;
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comparison-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid #dce8dd;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.comparison-label {
+  color: #536b5a;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.comparison-change {
+  font-size: 1.35rem;
+}
+
+.change-up .comparison-change {
+  color: #2f7d4f;
+}
+
+.change-down .comparison-change {
+  color: #b3452e;
+}
+
+.comparison-detail {
+  color: #466951;
+  font-size: 0.85rem;
+}
+
+.transfer-form {
+  margin-top: 22px;
+}
+
+@media (max-width: 768px) {
+  .chart-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .chart-value {
+    text-align: left;
+  }
+
+  .export-actions {
+    flex-wrap: wrap;
+  }
+}

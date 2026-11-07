@@ -182,8 +182,39 @@ async function getPeriodComparisonData(userId, currentStart, currentEnd, prevSta
   };
 }
 
+/**
+ * Format a stored DATE value as YYYY-MM-DD without timezone shifting.
+ * node-pg returns DATE columns as a Date at local midnight, so local getters
+ * reproduce the stored calendar date on any server timezone. Using
+ * toISOString() here would shift the date one day back for servers east of UTC.
+ */
+function formatDateOnly(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value.slice(0, 10);
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Format an amount for the PDF export with the same rupee currency the app UI
+ * uses (₹ with Indian digit grouping), instead of a hard-coded dollar sign.
+ */
+function formatPdfAmount(value) {
+  const amount = Number(value) || 0;
+  return `₹${amount.toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 module.exports = {
   getWeeklyReportData,
   getMonthlyReportData,
   getPeriodComparisonData,
+  formatDateOnly,
+  formatPdfAmount,
 };
