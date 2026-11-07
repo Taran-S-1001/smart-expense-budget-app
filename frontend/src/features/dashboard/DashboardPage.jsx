@@ -20,10 +20,16 @@ const modules = [
     symbol: 'B',
   },
   {
+    title: 'Reports',
+    description: 'View spending charts, export reports, and compare periods.',
+    to: '/reports',
+    symbol: 'R',
+  },
+  {
     title: 'Bill Reminders',
     description: 'Schedule upcoming bill payments and reminders.',
     to: '/reminders',
-    symbol: 'R',
+    symbol: 'L',
   },
 ];
 

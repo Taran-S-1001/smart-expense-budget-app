@@ -14,6 +14,12 @@ export function AccountsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [fromAccountId, setFromAccountId] = useState('');
+  const [toAccountId, setToAccountId] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferring, setTransferring] = useState(false);
+  const [transferError, setTransferError] = useState('');
+  const [transferNotice, setTransferNotice] = useState('');
   const requestControllers = useRef(new Set());
 
   const loadAccounts = useCallback(async () => {
@@ -36,6 +42,16 @@ export function AccountsPage() {
       if (!controller.signal.aborted) {
         setAccounts(response.accounts);
         setAccountsToken(accessToken);
+        setFromAccountId((current) =>
+          response.accounts.some((account) => account.accountId === current)
+            ? current
+            : response.accounts[0]?.accountId || '',
+        );
+        setToAccountId((current) =>
+          response.accounts.some((account) => account.accountId === current)
+            ? current
+            : response.accounts[1]?.accountId || response.accounts[0]?.accountId || '',
+        );
       }
     } catch (requestError) {
       if (!controller.signal.aborted) setError(requestError.message);
@@ -91,6 +107,56 @@ export function AccountsPage() {
   };
 
   const visibleAccounts = accountsToken === accessToken ? accounts : [];
+
+  const handleFromAccountChange = (accountId) => {
+    setFromAccountId(accountId);
+    setToAccountId((current) => {
+      if (current && current !== accountId) return current;
+      const fallback = visibleAccounts.find((account) => account.accountId !== accountId);
+      return fallback ? fallback.accountId : '';
+    });
+  };
+
+  const handleTransfer = async (event) => {
+    event.preventDefault();
+    if (!accessToken) {
+      setTransferError('Sign in before making a transfer.');
+      return;
+    }
+    if (!fromAccountId || !toAccountId) {
+      setTransferError('Choose a source and a destination account.');
+      return;
+    }
+    if (fromAccountId === toAccountId) {
+      setTransferError('Source and destination accounts must be different.');
+      return;
+    }
+
+    setTransferring(true);
+    setTransferError('');
+    setTransferNotice('');
+    const controller = new AbortController();
+    requestControllers.current.add(controller);
+    try {
+      await api.post(
+        '/accounts/transfer',
+        { fromAccountId, toAccountId, amount: Number(transferAmount) },
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
+        },
+      );
+      if (controller.signal.aborted) return;
+      setTransferAmount('');
+      setTransferNotice('Transfer complete. Balances updated.');
+      loadAccounts();
+    } catch (requestError) {
+      if (!controller.signal.aborted) setTransferError(requestError.message);
+    } finally {
+      requestControllers.current.delete(controller);
+      if (!controller.signal.aborted) setTransferring(false);
+    }
+  };
 
   return (
     <div className="accounts-page">
@@ -158,6 +224,85 @@ export function AccountsPage() {
             {submitting ? 'Creating…' : 'Create account'}
           </button>
         </form>
+
+        {accessToken && (
+          <form className="account-form transfer-form" onSubmit={handleTransfer}>
+            <h3>Transfer between accounts</h3>
+            {transferError && (
+              <p className="form-message error-message" role="alert">{transferError}</p>
+            )}
+            {transferNotice && (
+              <p className="form-message success-message" role="status">{transferNotice}</p>
+            )}
+            {visibleAccounts.length < 2 ? (
+              <p className="empty-state">
+                Create at least two accounts to transfer money between them.
+              </p>
+            ) : (
+              <>
+                <div className="account-form-grid">
+                  <label>
+                    From account
+                    <select
+                      name="fromAccountId"
+                      onChange={(event) => handleFromAccountChange(event.target.value)}
+                      value={fromAccountId}
+                    >
+                      {visibleAccounts.map((account) => (
+                        <option key={account.accountId} value={account.accountId}>
+                          {account.accountName} (₹
+                          {Number(account.balance).toLocaleString('en-IN', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                          )
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    To account
+                    <select
+                      name="toAccountId"
+                      onChange={(event) => setToAccountId(event.target.value)}
+                      value={toAccountId}
+                    >
+                      {visibleAccounts
+                        .filter((account) => account.accountId !== fromAccountId)
+                        .map((account) => (
+                          <option key={account.accountId} value={account.accountId}>
+                            {account.accountName} (₹
+                            {Number(account.balance).toLocaleString('en-IN', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                            )
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    Amount
+                    <input
+                      inputMode="decimal"
+                      min="0.01"
+                      name="transferAmount"
+                      onChange={(event) => setTransferAmount(event.target.value)}
+                      placeholder="0.00"
+                      required
+                      step="0.01"
+                      type="number"
+                      value={transferAmount}
+                    />
+                  </label>
+                </div>
+                <button className="primary-button" disabled={transferring} type="submit">
+                  {transferring ? 'Transferring…' : 'Transfer'}
+                </button>
+              </>
+            )}
+          </form>
+        )}
 
         <div className="account-list" aria-live="polite">
           <div className="account-list-heading">
