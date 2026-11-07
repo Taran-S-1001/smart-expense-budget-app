@@ -42,4 +42,4 @@ These are not shown as passed. See `docs/NFR_VERIFICATION.md` for the first five
 
 ## Requirement traceability matrix
 
-The RTM lives in SRS v4.0 Section 8 (and is mirrored in Test Plan Section 13). Per the rule above the documents are not edited; RTM statuses should be read together with this file.
+The RTM is in SRS v4.0 Section 8 and Test Plan Section 13. Per the rule above those documents are not edited. The final statuses are in `docs/RTM.md`.
