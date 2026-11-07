@@ -48,7 +48,10 @@ describe('S2-02 session timeout (SEBM-SR-004)', () => {
 
   test('IND-SES-06 the default session timeout (no env override) is 15 minutes or less', () => {
     const { execFileSync } = require('child_process');
-    const out = execFileSync('node', ['-e', "delete process.env.SESSION_TIMEOUT_SECONDS; console.log(require('./src/config').sessionTimeoutSeconds)"], { cwd: require('path').join(__dirname, '..', '..', '..'), env: { ...process.env, SESSION_TIMEOUT_SECONDS: '' } }).toString().trim();
+    const out = execFileSync('node', ['-e', "console.log(require('./src/config').sessionTimeoutSeconds)"], { 
+    cwd: require('path').join(__dirname, '..', '..', '..'), 
+    env: { PATH: process.env.PATH, NODE_ENV: 'test' } 
+    }).toString().trim();   
     expect(Number(out)).toBeGreaterThan(0);
     expect(Number(out)).toBeLessThanOrEqual(900);
   });
