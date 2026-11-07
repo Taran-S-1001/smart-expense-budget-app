@@ -55,6 +55,7 @@ export function ReportsPage() {
   const [year, setYear] = useState(String(currentYear));
   const [report, setReport] = useState(null);
   const [reportToken, setReportToken] = useState(null);
+  const [reportParams, setReportParams] = useState(null);
   const [reportDescription, setReportDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState('');
@@ -99,6 +100,9 @@ export function ReportsPage() {
       });
       setReport(response);
       setReportToken(accessToken);
+      // Remember the parameters that produced this report so a later export
+      // downloads exactly what is on screen, even if the form was edited since.
+      setReportParams({ mode, startDate, endDate, year });
       setReportDescription(
         mode === 'weekly'
           ? `Weekly report for ${startDate} to ${endDate}`
@@ -115,6 +119,7 @@ export function ReportsPage() {
     if (!accessToken) {
       setReport(null);
       setReportToken(null);
+      setReportParams(null);
       setComparison(null);
       setComparisonToken(null);
       return;
@@ -129,14 +134,19 @@ export function ReportsPage() {
       return;
     }
 
+    if (!reportParams) {
+      setError('Run a report before exporting it.');
+      return;
+    }
+
     setExporting(format);
     setError('');
     setNotice('');
     try {
       const params =
-        mode === 'weekly'
-          ? `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
-          : `year=${encodeURIComponent(year)}`;
+        reportParams.mode === 'weekly'
+          ? `startDate=${encodeURIComponent(reportParams.startDate)}&endDate=${encodeURIComponent(reportParams.endDate)}`
+          : `year=${encodeURIComponent(reportParams.year)}`;
       const response = await fetch(
         `${API_BASE_URL}/reports/export?format=${format}&${params}`,
         { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -156,9 +166,9 @@ export function ReportsPage() {
       const anchor = document.createElement('a');
       anchor.href = url;
       anchor.download =
-        mode === 'weekly'
-          ? `sebm-weekly-report-${startDate}-to-${endDate}.${format}`
-          : `sebm-monthly-report-${year}.${format}`;
+        reportParams.mode === 'weekly'
+          ? `sebm-weekly-report-${reportParams.startDate}-to-${reportParams.endDate}.${format}`
+          : `sebm-monthly-report-${reportParams.year}.${format}`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();

@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -232,6 +232,49 @@ describe('ReportsPage export (SEBM-F-041, TC-Rep-02)', () => {
     expect(
       await screen.findByText('Report exported as CSV.'),
     ).toBeTruthy();
+
+    clickSpy.mockRestore();
+  });
+
+  it('exports the date range of the displayed report, not the edited form values', async () => {
+    // Regression: changing the form dates without clicking "Show report" must not
+    // change what the export downloads - the CSV must match the report on screen.
+    const blob = new Blob(['csv-data'], { type: 'text/csv' });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: () => Promise.resolve(blob),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const createObjectURL = vi.fn().mockReturnValue('blob:mock-url');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL }));
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
+
+    const user = userEvent.setup();
+    renderReportsPage();
+    await signIn(user);
+    await screen.findByText('Spending by category');
+
+    const startInput = screen.getByLabelText('Start date');
+    const endInput = screen.getByLabelText('End date');
+    const shownStart = startInput.value;
+    const shownEnd = endInput.value;
+
+    fireEvent.change(startInput, { target: { value: '2026-10-01' } });
+    fireEvent.change(endInput, { target: { value: '2026-10-31' } });
+
+    await user.click(screen.getByRole('button', { name: 'Download CSV' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain(`startDate=${shownStart}`);
+    expect(url).toContain(`endDate=${shownEnd}`);
+    expect(url).not.toContain('startDate=2026-10-01');
+    expect(url).not.toContain('endDate=2026-10-31');
 
     clickSpy.mockRestore();
   });
