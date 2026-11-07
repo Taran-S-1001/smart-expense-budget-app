@@ -57,3 +57,26 @@ describe('Reports Export API (SEBM-F-041 / TC-Rep-02)', () => {
     expect(res.body.error.code).toBe('INVALID_FORMAT');
   });
 }); 
+describe('Reports export date formatting (SEBM-F-041 / TC-Rep-02)', () => {
+  const { formatDateOnly } = require('../../../src/reports/reportService');
+
+  afterEach(() => {
+    delete process.env.TZ;
+  });
+
+  it('renders the stored calendar date, not the previous day, for servers east of UTC', () => {
+    // node-pg returns DATE columns as a Date at local midnight. Under a server
+    // in Asia/Kolkata, toISOString() shifts that to the previous UTC day;
+    // formatDateOnly must reproduce the stored date instead.
+    process.env.TZ = 'Asia/Kolkata';
+    const stored = new Date(2026, 9, 15); // what pg returns for date '2026-10-15'
+    expect(new Date(stored).toISOString().split('T')[0]).toBe('2026-10-14'); // the old bug
+    expect(formatDateOnly(stored)).toBe('2026-10-15');
+  });
+
+  it('handles ISO strings and plain date strings without shifting', () => {
+    expect(formatDateOnly('2026-10-15')).toBe('2026-10-15');
+    expect(formatDateOnly('2026-10-15T00:00:00.000Z')).toBe('2026-10-15');
+    expect(formatDateOnly(null)).toBe('');
+  });
+});

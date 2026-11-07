@@ -11,7 +11,7 @@ const PDFDocument = require('pdfkit');
 const generateCsv = (transactions) => {
   let csv = 'Transaction ID,Date,Type,Amount,Category,Notes\n';
   transactions.forEach(t => {
-    const dateStr = t.date ? new Date(t.date).toISOString().split('T')[0] : '';
+    const dateStr = reportService.formatDateOnly(t.date);
     const notes = (t.notes || '').replace(/"/g, '""');
     const category = (t.category_name || 'Uncategorized').replace(/"/g, '""');
     csv += `${t.transaction_id},${dateStr},${t.type},${t.amount},"${category}","${notes}"\n`;
@@ -44,7 +44,7 @@ const generatePdf = (reportData, res) => {
     doc.fontSize(10).text('No transactions found for the specified period.');
   } else {
     reportData.transactions.forEach((t, index) => {
-      const dateStr = t.date ? new Date(t.date).toISOString().split('T')[0] : 'N/A';
+      const dateStr = reportService.formatDateOnly(t.date) || 'N/A';
       doc.fontSize(9).text(
         `${index + 1}. [${dateStr}] ${t.type.toUpperCase()} $${t.amount} | Category: ${t.category_name || 'N/A'} | Notes: ${t.notes || 'None'}`
       );
