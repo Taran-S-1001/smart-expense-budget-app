@@ -11,12 +11,9 @@ describe('Independent Verification: RBAC Middleware (S2-03)', () => {
       .get('/api/admin/categories')
       .set('Authorization', `Bearer ${adminToken}`);
 
-    expect([200, 500]).toContain(res.status);
-
-    if (res.status === 200) {
-      expect(res.body).toHaveProperty('categories');
-      expect(Array.isArray(res.body.categories)).toBe(true);
-    }
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('categories');
+    expect(Array.isArray(res.body.categories)).toBe(true);
   });
 
   test('TC-Sec-06-B: Normal user is forbidden from admin endpoint', async () => {
