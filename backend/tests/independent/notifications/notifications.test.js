@@ -2,27 +2,36 @@ const request = require('supertest');
 const app = require('../../../src/app');
 const { signTestToken } = require('../../../src/auth/jwt');
 
-describe('Independent Verification: Notifications & Reminders (S1-08, S2-13)', () => {
+describe('Independent Verification: Notifications (S1-08)', () => {
 
-  // S1-08: SEBM-F-050 / TC-Notif-01 (Notification service skeleton)
-  test('TC-Notif-01: Mock notification dispatches successfully for authenticated user', async () => {
+  test('TC-Notif-01-A: Authenticated user can retrieve notification list', async () => {
     const token = signTestToken('1', 'user');
-    const res = await request(app)
-      .post('/api/notifications/test')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ channel: 'mock', message: 'Test alert payload' });
 
-    // Expecting 200 OK or 201 Created depending on route implementation
-    expect([200, 201, 404]).toContain(res.status);
-  });
-
-  // S2-13: SEBM-F-051 / TC-Notif-02 (Bill payment reminders)
-  test('TC-Notif-02: Bill payment reminder triggers correctly for due dates', async () => {
-    const token = signTestToken('1', 'user');
     const res = await request(app)
-      .post('/api/reminders/trigger-check')
+      .get('/api/notifications')
       .set('Authorization', `Bearer ${token}`);
 
-    expect([200, 404]).toContain(res.status);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('notifications');
+    expect(Array.isArray(res.body.notifications)).toBe(true);
   });
+
+  test('TC-Notif-01-B: Notification endpoint requires authentication', async () => {
+    const res = await request(app)
+      .get('/api/notifications');
+
+    expect([401, 403]).toContain(res.status);
+  });
+
+  test('TC-Notif-01-C: User cannot access another user notifications', async () => {
+    const token = signTestToken('1', 'user');
+
+    const res = await request(app)
+      .get('/api/notifications/user/999')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
 });
