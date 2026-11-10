@@ -553,6 +553,12 @@ a {
   white-space: normal;
 }
 
+.transaction-detail-row > td {
+  padding-top: 0;
+  white-space: normal;
+  background: #fcfcfb;
+}
+
 .transaction-notes {
   display: block;
   margin-top: 4px;

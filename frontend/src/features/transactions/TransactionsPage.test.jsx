@@ -246,3 +246,107 @@ describe('TransactionsPage (SEBM-F-010, TC-Exp-01)', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('already exists');
   });
 });
+
+describe('TransactionsPage receipt section (SEBM-F-012, TC-Exp-03)', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function resolveWithNoReceipt() {
+    api.get.mockImplementation((path) => {
+      if (path === '/accounts') return Promise.resolve(accountsResponse);
+      if (path === '/transactions/categories') return Promise.resolve(categoriesResponse);
+      if (path === '/transactions') return Promise.resolve(transactionsResponse);
+      if (path === '/receipts/transaction-existing') {
+        return Promise.reject({
+          status: 404,
+          code: 'RECEIPT_NOT_FOUND',
+          message: 'No receipt found for this transaction.',
+        });
+      }
+      throw new Error(`Unexpected API path: ${path}`);
+    });
+  }
+
+  it('mounts the receipt section on demand and attaches, views and replaces a receipt', async () => {
+    const user = userEvent.setup();
+    resolveWithNoReceipt();
+    renderTransactionsPage();
+
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText('Coffee')).toBeTruthy();
+
+    // The receipt section is only mounted when the transaction's Receipt button is clicked
+    expect(screen.queryByTestId('receipt-section')).toBeNull();
+    expect(api.get).not.toHaveBeenCalledWith(
+      '/receipts/transaction-existing',
+      expect.anything(),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Receipt for Groceries on 2026-10-27' }));
+
+    expect(await screen.findByText('No receipt attached yet.')).toBeTruthy();
+    expect(api.get).toHaveBeenCalledWith(
+      '/receipts/transaction-existing',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer test-token' },
+        signal: expect.any(AbortSignal),
+      }),
+    );
+
+    // Attach a receipt photo
+    const receiptFile = new File(['fake-image-bytes'], 'receipt.png', { type: 'image/png' });
+    await user.upload(screen.getByTestId('receipt-file-input'), receiptFile);
+    expect(await screen.findByTestId('receipt-preview')).toBeTruthy();
+    expect(screen.getByTestId('attach-receipt-button').textContent).toBe('Attach Receipt');
+
+    api.post.mockResolvedValueOnce({
+      receipt: {
+        receiptId: 'receipt-1',
+        transactionId: 'transaction-existing',
+        imageUrl: 'data:image/png;base64,ZmFrZS1pbWFnZS1ieXRlcw==',
+        createdAt: '2026-10-28T10:00:00.000Z',
+      },
+    });
+    await user.click(screen.getByTestId('attach-receipt-button'));
+
+    expect(await screen.findByText('Receipt attached successfully!')).toBeTruthy();
+    expect(api.post).toHaveBeenCalledWith(
+      '/receipts/transaction-existing',
+      { imageUrl: expect.stringMatching(/^data:image\/png;base64,/) },
+      expect.objectContaining({ headers: { Authorization: 'Bearer test-token' } }),
+    );
+    expect(screen.getByTestId('receipt-image').getAttribute('src')).toBe(
+      'data:image/png;base64,ZmFrZS1pbWFnZS1ieXRlcw==',
+    );
+
+    // Replace it with a new photo
+    const replacementFile = new File(['other-bytes'], 'receipt-2.png', { type: 'image/png' });
+    await user.upload(screen.getByTestId('receipt-file-input'), replacementFile);
+    expect(await screen.findByTestId('receipt-preview')).toBeTruthy();
+    expect(screen.getByTestId('attach-receipt-button').textContent).toBe('Replace Receipt');
+
+    api.post.mockResolvedValueOnce({
+      receipt: {
+        receiptId: 'receipt-1',
+        transactionId: 'transaction-existing',
+        imageUrl: 'data:image/png;base64,b3RoZXItYnl0ZXM=',
+        createdAt: '2026-10-28T11:00:00.000Z',
+      },
+    });
+    await user.click(screen.getByTestId('attach-receipt-button'));
+
+    expect(await screen.findByText('Receipt attached successfully!')).toBeTruthy();
+    expect(screen.getByTestId('receipt-image').getAttribute('src')).toBe(
+      'data:image/png;base64,b3RoZXItYnl0ZXM=',
+    );
+
+    // Hide the section again
+    await user.click(screen.getByRole('button', { name: 'Hide receipt for Groceries on 2026-10-27' }));
+    expect(screen.queryByTestId('receipt-section')).toBeNull();
+  });
+});

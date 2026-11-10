@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { ReceiptSection } from './ReceiptSection';
 
 const localDate = () => {
   const date = new Date();
@@ -42,6 +43,7 @@ export function TransactionsPage() {
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [editingId, setEditingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [receiptForId, setReceiptForId] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const requestControllers = useRef(new Set());
@@ -78,6 +80,7 @@ export function TransactionsPage() {
       setSubmitting(false);
       setDeletingId(null);
       setEditingId(null);
+      setReceiptForId(null);
       return undefined;
     }
 
@@ -243,6 +246,7 @@ export function TransactionsPage() {
         ),
       );
       if (editingId === transaction.transactionId) cancelEditing();
+      if (receiptForId === transaction.transactionId) setReceiptForId(null);
       setNotice('Transaction deleted.');
     } catch (requestError) {
       if (!controller.signal.aborted) setError(requestError.message);
@@ -287,6 +291,12 @@ export function TransactionsPage() {
       requestControllers.current.delete(controller);
       if (!controller.signal.aborted) setCreatingCategory(false);
     }
+  };
+
+  const toggleReceipt = (transaction) => {
+    setReceiptForId((current) =>
+      current === transaction.transactionId ? null : transaction.transactionId,
+    );
   };
 
   const rowActionsDisabled = submitting || deletingId !== null;
@@ -474,7 +484,8 @@ export function TransactionsPage() {
                 </thead>
                 <tbody>
                   {visibleTransactions.map((transaction) => (
-                    <tr key={transaction.transactionId}>
+                    <Fragment key={transaction.transactionId}>
+                    <tr>
                       <td>
                         <strong>{categoryNames.get(transaction.categoryId) || 'Category'}</strong>
                         {transaction.notes && <span className="transaction-notes">{transaction.notes}</span>}
@@ -503,8 +514,25 @@ export function TransactionsPage() {
                         >
                           {deletingId === transaction.transactionId ? 'Deleting…' : 'Delete'}
                         </button>
+                        <button
+                          aria-label={`${receiptForId === transaction.transactionId ? 'Hide receipt' : 'Receipt'} for ${categoryNames.get(transaction.categoryId) || 'transaction'} on ${transaction.date}`}
+                          className="secondary-button"
+                          disabled={rowActionsDisabled}
+                          onClick={() => toggleReceipt(transaction)}
+                          type="button"
+                        >
+                          {receiptForId === transaction.transactionId ? 'Hide receipt' : 'Receipt'}
+                        </button>
                       </td>
                     </tr>
+                    {receiptForId === transaction.transactionId && (
+                      <tr className="transaction-detail-row">
+                        <td colSpan={5}>
+                          <ReceiptSection transactionId={transaction.transactionId} />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
