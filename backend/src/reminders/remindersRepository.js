@@ -103,14 +103,18 @@ class RemindersRepository {
     if (updates.dueDate !== undefined) {
       fields.push(`due_date = $${paramIndex++}`);
       values.push(updates.dueDate);
-      // Reset notification tracking when due date is modified
-      fields.push('last_notified_at = NULL');
-      fields.push('last_notified_due_date = NULL');
     }
     if (updates.reminderLeadDays !== undefined) {
       fields.push(`reminder_lead_days = $${paramIndex++}`);
       values.push(updates.reminderLeadDays);
-      // Reset notification tracking when lead days are modified
+    }
+    // Reset notification tracking once when the schedule (due date or lead
+    // days) changes, so advance reminders can be sent for the revised due
+    // date. Both fields may change in one save, and Postgres rejects an
+    // UPDATE that assigns the same column twice, so add the reset a single
+    // time. An explicit notification-state value wins over the reset.
+    const scheduleChanged = updates.dueDate !== undefined || updates.reminderLeadDays !== undefined;
+    if (scheduleChanged && updates.lastNotifiedAt === undefined) {
       fields.push('last_notified_at = NULL');
       fields.push('last_notified_due_date = NULL');
     }
